@@ -1,6 +1,7 @@
 import '../data/db/app_database.dart';
 import '../data/repositories/task_repository.dart';
 import '../date/week_calendar.dart';
+import '../models/summary_analysis.dart';
 import '../models/week_summary.dart';
 
 class SummaryService {
@@ -19,11 +20,28 @@ class SummaryService {
     var completedMinutes = 0;
     var poolMinutes = 0;
 
+    var totalTasks = 0;
+    var completedTasks = 0;
+    var skippedTasks = 0;
+    var movedTasks = 0;
+    var poolRemainingTasks = 0;
+
     for (final t in tasks) {
+      totalTasks++;
       final d = _durationMinutesOrZero(t);
       plannedMinutes += d;
       if (t.status == 'done') {
         completedMinutes += d;
+        completedTasks++;
+      }
+      if (t.status == 'skipped') {
+        skippedTasks++;
+      }
+      if (t.movedCount > 0) {
+        movedTasks++;
+      }
+      if (t.plannedDate == null && t.status != 'done') {
+        poolRemainingTasks++;
       }
       if (t.plannedDate == null) {
         poolMinutes += d;
@@ -60,6 +78,54 @@ class SummaryService {
       poolMinutes: poolMinutes,
       completionPercent: completionPercent,
       dailyBreakdown: dailyBreakdown,
+      totalTasks: totalTasks,
+      completedTasks: completedTasks,
+      skippedTasks: skippedTasks,
+      movedTasks: movedTasks,
+      poolRemainingTasks: poolRemainingTasks,
+    );
+  }
+
+  Future<List<WeekTrendItem>> weekTrend(String currentWeekStart) async {
+    const labels = [
+      'Bu hafta',
+      'Geçen hafta',
+      '2 hafta önce',
+      '3 hafta önce',
+    ];
+    final out = <WeekTrendItem>[];
+    for (var i = 0; i < 4; i++) {
+      final ws = addDaysIso(currentWeekStart, -7 * i);
+      final sum = await weekSummary(ws);
+      final pct = sum.plannedMinutes == 0 ? 0.0 : sum.completionPercent;
+      out.add(
+        WeekTrendItem(
+          weekStart: ws,
+          completionPercent: pct,
+          weekLabel: labels[i],
+        ),
+      );
+    }
+    return out;
+  }
+
+  Future<PostponeAnalysis> postponeAnalysis(String weekStart) async {
+    final tasks = await _taskRepository.getTasksForWeek(weekStart);
+    final mostMoved =
+        await _taskRepository.getMostMovedTasks(weekStart, limit: 5);
+    final neverMovedCompleted = tasks
+        .where((t) => t.movedCount == 0 && t.status == 'done')
+        .length;
+    final moved = tasks.where((t) => t.movedCount > 0).toList();
+    var avg = 0.0;
+    if (moved.isNotEmpty) {
+      final sumMoves = moved.fold<int>(0, (a, t) => a + t.movedCount);
+      avg = sumMoves / moved.length;
+    }
+    return PostponeAnalysis(
+      mostMovedTasks: mostMoved,
+      neverMovedCompleted: neverMovedCompleted,
+      avgMovesPerMovedTask: avg,
     );
   }
 }

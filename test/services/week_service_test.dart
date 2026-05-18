@@ -45,4 +45,23 @@ void main() {
     expect(linked.single.title, 'R1');
     expect(linked.single.plannedDate, isNull);
   });
+
+  test('ensureWeekTasks uses targetWeekday for planned column', () async {
+    const weekStart = '2025-01-06';
+    final now = DateTime.utc(2025, 1, 1, 10).toIso8601String();
+    final tue = '2025-01-07';
+    final tid = await templates.insertTemplate(
+      RecurringTemplatesCompanion.insert(
+        title: 'Tue task',
+        durationMinutes: const Value(20),
+        targetWeekday: const Value(2),
+        createdAt: now,
+      ),
+    );
+    await week.ensureWeekTasks(weekStart);
+    final dayTasks = await tasks.getDayTasks(weekStart, tue);
+    final linked = dayTasks.where((t) => t.recurrenceTemplateId == tid).toList();
+    expect(linked.length, 1);
+    expect(linked.single.plannedDate, tue);
+  });
 }

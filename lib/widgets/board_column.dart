@@ -33,7 +33,7 @@ class BoardColumn extends StatelessWidget {
           border: Border.all(color: DesignTokens.slate800),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(DesignTokens.space3),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -62,7 +62,10 @@ class BoardColumn extends StatelessWidget {
                   if (badgeCount != null)
                     Container(
                       key: Key('board_col_badge_$title'),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: DesignTokens.space2,
+                        vertical: DesignTokens.space1,
+                      ),
                       decoration: BoxDecoration(
                         color: DesignTokens.slate800,
                         borderRadius: BorderRadius.circular(999),
@@ -81,19 +84,19 @@ class BoardColumn extends StatelessWidget {
                 ],
               ),
               if (subtitle != null) ...[
-                const SizedBox(height: 4),
+                SizedBox(height: DesignTokens.space1),
                 Text(
                   subtitle!,
                   key: Key('board_col_sub_$title'),
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: DesignTokens.slate400,
+                        color: DesignTokens.textMuted,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
                         fontSize: 12,
                       ),
                 ),
               ],
-              const SizedBox(height: 8),
+              SizedBox(height: DesignTokens.space2),
               Expanded(child: child),
             ],
           ),

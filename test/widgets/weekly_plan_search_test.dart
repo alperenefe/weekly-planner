@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:weekly_planner/config/planner_feature_flags.dart';
 import 'package:weekly_planner/data/db/app_database.dart';
 import 'package:weekly_planner/data/repositories/task_repository.dart';
 import 'package:weekly_planner/date/week_calendar.dart';
@@ -54,5 +55,23 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('BetaOtherUnique'), findsOneWidget);
+  });
+
+  testWidgets('plan arama kapalıyken arama düğmesi yok', (tester) async {
+    final db = AppDatabase.memory();
+    addTearDown(() async {
+      await db.close();
+    });
+    await tester.pumpWidget(
+      plannerAppWithDb(
+        db,
+        featureFlags: const PlannerFeatureFlags(
+          planBoardSearchEnabled: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('weekly_plan_search')), findsNothing);
   });
 }

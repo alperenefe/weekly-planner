@@ -3,6 +3,18 @@ import 'package:drift/drift.dart';
 import '../../date/week_calendar.dart';
 import '../db/app_database.dart';
 
+class MoveTaskOutcome {
+  const MoveTaskOutcome({
+    required this.didChange,
+    required this.movedCountAfter,
+    required this.scheduledFromPool,
+  });
+
+  final bool didChange;
+  final int movedCountAfter;
+  final bool scheduledFromPool;
+}
+
 int compareTasksPlannedDayOrder(Task a, Task b) {
   final am = a.startMinutes;
   final bm = b.startMinutes;
@@ -123,6 +135,9 @@ class TaskRepository {
             recurrenceTemplateId: t.recurrenceTemplateId == null
                 ? const Value.absent()
                 : Value(t.recurrenceTemplateId),
+            accentColor: t.accentColor == null
+                ? const Value.absent()
+                : Value(t.accentColor),
             createdAt: now,
             updatedAt: now,
           ),
@@ -191,7 +206,7 @@ class TaskRepository {
     });
   }
 
-  Future<void> moveTask(int taskId, String? newPlannedDate) {
+  Future<MoveTaskOutcome> moveTask(int taskId, String? newPlannedDate) {
     return _db.transaction(() async {
       final row = await (_db.select(_db.tasks)..where((t) => t.id.equals(taskId)))
           .getSingleOrNull();
@@ -200,14 +215,14 @@ class TaskRepository {
       }
       final fromDate = row.plannedDate;
       if (fromDate == newPlannedDate) {
-        return;
+        return MoveTaskOutcome(
+          didChange: false,
+          movedCountAfter: row.movedCount,
+          scheduledFromPool: false,
+        );
       }
       final now = DateTime.now().toUtc().toIso8601String();
-      final scheduleFromPool =
-          fromDate == null && newPlannedDate != null;
-      final newCount = scheduleFromPool
-          ? row.movedCount + 1
-          : row.movedCount;
+      final newCount = row.movedCount + 1;
       await (_db.update(_db.tasks)..where((t) => t.id.equals(taskId))).write(
             TasksCompanion(
               plannedDate: newPlannedDate == null
@@ -226,6 +241,11 @@ class TaskRepository {
               timestamp: now,
             ),
           );
+      return MoveTaskOutcome(
+        didChange: true,
+        movedCountAfter: newCount,
+        scheduledFromPool: fromDate == null && newPlannedDate != null,
+      );
     });
   }
 
@@ -257,12 +277,41 @@ class TaskRepository {
     });
   }
 
+  Future<int> insertTasksInTransaction(List<TasksCompanion> items) {
+    return _db.transaction(() async {
+      var n = 0;
+      for (final c in items) {
+        await _insertTaskWithHistory(c);
+        n++;
+      }
+      return n;
+    });
+  }
+
+  Future<List<Task>> getMostMovedTasks(String weekStart, {int limit = 5}) {
+    return (_db.select(_db.tasks)
+          ..where(
+            (t) =>
+                t.weekStart.equals(weekStart) &
+                t.movedCount.isBiggerThanValue(0),
+          )
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.movedCount),
+            (t) => OrderingTerm.asc(t.title),
+          ])
+          ..limit(limit))
+        .get();
+  }
+
   Future<void> resetAllData() {
     return _db.transaction(() async {
       await _db.delete(_db.taskHistories).go();
       await _db.delete(_db.tasks).go();
       await _db.delete(_db.weekMetas).go();
       await _db.delete(_db.recurringTemplates).go();
+      await _db.customStatement('DELETE FROM monthly_goals');
+      await _db.customStatement('DELETE FROM week_template_tasks');
+      await _db.customStatement('DELETE FROM week_templates');
     });
   }
 

@@ -15,6 +15,50 @@ const _trMonthsShort = <String>[
   'Ara',
 ];
 
+const _trMonthsLong = <String>[
+  'Ocak',
+  'Şubat',
+  'Mart',
+  'Nisan',
+  'Mayıs',
+  'Haziran',
+  'Temmuz',
+  'Ağustos',
+  'Eylül',
+  'Ekim',
+  'Kasım',
+  'Aralık',
+];
+
+String yyyyMmFromDate(DateTime d) {
+  final y = d.year.toString().padLeft(4, '0');
+  final m = d.month.toString().padLeft(2, '0');
+  return '$y-$m';
+}
+
+String addMonthsYyyyMm(String yyyyMm, int deltaMonths) {
+  final parts = yyyyMm.split('-');
+  var y = int.parse(parts[0], radix: 10);
+  var mo = int.parse(parts[1], radix: 10);
+  mo += deltaMonths;
+  while (mo > 12) {
+    mo -= 12;
+    y++;
+  }
+  while (mo < 1) {
+    mo += 12;
+    y--;
+  }
+  return '${y.toString().padLeft(4, '0')}-${mo.toString().padLeft(2, '0')}';
+}
+
+String trMonthYearFromYyyyMm(String yyyyMm) {
+  final parts = yyyyMm.split('-');
+  final y = int.parse(parts[0], radix: 10);
+  final m = int.parse(parts[1], radix: 10);
+  return '${_trMonthsLong[m - 1]} $y';
+}
+
 String trShortDate(DateTime d) {
   return '${d.day} ${_trMonthsShort[d.month - 1]} ${d.year}';
 }

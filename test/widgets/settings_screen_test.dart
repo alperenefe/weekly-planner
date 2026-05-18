@@ -37,6 +37,23 @@ void main() {
     expect(find.textContaining('9.9.9'), findsWidgets);
     expect(find.byKey(const Key('settings_feature_copy_last_week')), findsOneWidget);
     expect(find.byKey(const Key('settings_feature_plan_shift')), findsOneWidget);
+    expect(find.byKey(const Key('settings_feature_summary_tab')), findsOneWidget);
+    expect(find.byKey(const Key('settings_feature_history_tab')), findsOneWidget);
+    expect(find.byKey(const Key('settings_feature_plan_search')), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings_week_templates_row')),
+      500,
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('settings_week_templates_row')), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings_reset_all_row')),
+      500,
+    );
+    await tester.pumpAndSettle();
+
     expect(find.byKey(const Key('settings_reset_all_row')), findsOneWidget);
   });
 
@@ -61,6 +78,12 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('nav_settings')));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings_reset_all_row')),
+      500,
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('settings_reset_all_row')));

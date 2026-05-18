@@ -17,6 +17,21 @@ class RecurringTemplateRepository {
         .get();
   }
 
+  Future<List<RecurringTemplate>> getAllTemplates() {
+    return (_db.select(_db.recurringTemplates)
+          ..orderBy([(t) => OrderingTerm.desc(t.id)]))
+        .get();
+  }
+
+  Future<void> updateTemplate(int id, RecurringTemplatesCompanion data) {
+    return (_db.update(_db.recurringTemplates)..where((t) => t.id.equals(id)))
+        .write(data);
+  }
+
+  Future<void> deleteTemplate(int id) {
+    return (_db.delete(_db.recurringTemplates)..where((t) => t.id.equals(id))).go();
+  }
+
   Future<void> deactivateTemplate(int id) {
     return (_db.update(_db.recurringTemplates)..where((t) => t.id.equals(id))).write(
           const RecurringTemplatesCompanion(isActive: Value(0)),

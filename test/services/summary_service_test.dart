@@ -33,6 +33,11 @@ void main() {
       expect(s.dailyBreakdown[iso]!.plannedMinutes, 0);
       expect(s.dailyBreakdown[iso]!.completedMinutes, 0);
     }
+    expect(s.totalTasks, 0);
+    expect(s.completedTasks, 0);
+    expect(s.skippedTasks, 0);
+    expect(s.movedTasks, 0);
+    expect(s.poolRemainingTasks, 0);
   });
 
   test('weekSummary counts pool planned done and null duration', () async {
@@ -99,5 +104,165 @@ void main() {
     final wed = addDaysIso(week, 2);
     expect(s.dailyBreakdown[wed]!.plannedMinutes, 0);
     expect(s.dailyBreakdown[wed]!.completedMinutes, 0);
+
+    expect(s.totalTasks, 4);
+    expect(s.completedTasks, 1);
+    expect(s.skippedTasks, 0);
+    expect(s.movedTasks, 0);
+    expect(s.poolRemainingTasks, 1);
+  });
+
+  test('weekSummary counts skipped moved poolRemaining and movedTasks', () async {
+    const week = '2025-02-03';
+    final mon = week;
+    final now = DateTime.utc(2025, 2, 1, 9).toIso8601String();
+    await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'SkipPool',
+        weekStart: week,
+        createdAt: now,
+        updatedAt: now,
+        status: const Value('skipped'),
+      ),
+    );
+    await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'Moved',
+        weekStart: week,
+        plannedDate: Value(mon),
+        originalPlannedDate: Value(mon),
+        durationMinutes: const Value(5),
+        movedCount: const Value(2),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'DoneNoMove',
+        weekStart: week,
+        plannedDate: Value(mon),
+        originalPlannedDate: Value(mon),
+        status: const Value('done'),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    final s = await summary.weekSummary(week);
+    expect(s.totalTasks, 3);
+    expect(s.skippedTasks, 1);
+    expect(s.movedTasks, 1);
+    expect(s.completedTasks, 1);
+    expect(s.poolRemainingTasks, 1);
+  });
+
+  test('weekTrend returns 4 items with correct labels', () async {
+    const week = '2025-03-10';
+    final trend = await summary.weekTrend(week);
+    expect(trend.length, 4);
+    expect(trend[0].weekLabel, 'Bu hafta');
+    expect(trend[0].weekStart, week);
+    expect(trend[1].weekLabel, 'Geçen hafta');
+    expect(trend[1].weekStart, addDaysIso(week, -7));
+    expect(trend[2].weekLabel, '2 hafta önce');
+    expect(trend[3].weekLabel, '3 hafta önce');
+  });
+
+  test('weekTrend returns 0% for weeks with no tasks', () async {
+    const week = '2025-04-07';
+    final trend = await summary.weekTrend(week);
+    for (final item in trend) {
+      expect(item.completionPercent, 0.0);
+    }
+  });
+
+  test('postponeAnalysis returns mostMovedTasks sorted by movedCount desc', () async {
+    const week = '2025-05-05';
+    final mon = week;
+    final now = DateTime.utc(2025, 5, 1, 9).toIso8601String();
+    await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'A',
+        weekStart: week,
+        plannedDate: Value(mon),
+        originalPlannedDate: Value(mon),
+        movedCount: const Value(1),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'B',
+        weekStart: week,
+        plannedDate: Value(mon),
+        originalPlannedDate: Value(mon),
+        movedCount: const Value(5),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'C',
+        weekStart: week,
+        plannedDate: Value(mon),
+        originalPlannedDate: Value(mon),
+        movedCount: const Value(3),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    final a = await summary.postponeAnalysis(week);
+    expect(a.mostMovedTasks.length, 3);
+    expect(a.mostMovedTasks.map((t) => t.title).toList(), ['B', 'C', 'A']);
+  });
+
+  test('postponeAnalysis neverMovedCompleted counts correctly', () async {
+    const week = '2025-06-02';
+    final mon = week;
+    final now = DateTime.utc(2025, 6, 1, 9).toIso8601String();
+    await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'D1',
+        weekStart: week,
+        plannedDate: Value(mon),
+        originalPlannedDate: Value(mon),
+        status: const Value('done'),
+        movedCount: const Value(0),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'D2',
+        weekStart: week,
+        plannedDate: Value(mon),
+        originalPlannedDate: Value(mon),
+        status: const Value('done'),
+        movedCount: const Value(1),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    final a = await summary.postponeAnalysis(week);
+    expect(a.neverMovedCompleted, 1);
+  });
+
+  test('postponeAnalysis avgMovesPerMovedTask is 0.0 when no moved tasks', () async {
+    const week = '2025-06-09';
+    final now = DateTime.utc(2025, 6, 1, 9).toIso8601String();
+    await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'Static',
+        weekStart: week,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    final a = await summary.postponeAnalysis(week);
+    expect(a.mostMovedTasks, isEmpty);
+    expect(a.avgMovesPerMovedTask, 0.0);
   });
 }

@@ -11,6 +11,7 @@ typedef AddTaskSubmit = Future<void> Function(
   String? notes,
   List<int> dayIndices,
   int? startMinutes,
+  int? accentColorArgb,
 );
 
 class AddTaskSheet extends StatefulWidget {
@@ -30,6 +31,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   bool _saving = false;
   bool _useStartTime = false;
   int _startMinutes = startMinutesFromQuarterIndex(36);
+  int? _accentArgb;
 
   @override
   void dispose() {
@@ -86,6 +88,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         notesRaw.isEmpty ? null : notesRaw,
         indices,
         startMinutes,
+        _accentArgb,
       );
     } finally {
       if (mounted) {
@@ -313,6 +316,65 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                         minLines: 3,
                         maxLines: 6,
                         textInputAction: TextInputAction.newline,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Vurgu rengi',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: DesignTokens.slate400,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          GestureDetector(
+                            onTap: () => setState(() => _accentArgb = null),
+                            child: Container(
+                              width: 30,
+                              height: 30,
+                              decoration: BoxDecoration(
+                                color: DesignTokens.slate800,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: _accentArgb == null
+                                      ? DesignTokens.blue400
+                                      : DesignTokens.slate600,
+                                  width: 2,
+                                ),
+                              ),
+                              alignment: Alignment.center,
+                              child: Icon(
+                                Icons.close,
+                                size: 14,
+                                color: _accentArgb == null
+                                    ? DesignTokens.blue400
+                                    : DesignTokens.slate500,
+                              ),
+                            ),
+                          ),
+                          for (final argb in DesignTokens.taskAccentArgb)
+                            GestureDetector(
+                              onTap: () => setState(() => _accentArgb = argb),
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: Color(argb),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: _accentArgb == argb
+                                        ? DesignTokens.white
+                                        : Colors.transparent,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const Padding(
                         padding: EdgeInsets.only(top: 16),

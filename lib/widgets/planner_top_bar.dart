@@ -2,12 +2,13 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import 'app_brand_mark.dart';
 import '../theme/design_tokens.dart';
 
 class PlannerTopBar extends StatelessWidget implements PreferredSizeWidget {
   const PlannerTopBar({
     super.key,
-    this.title = 'Weekly Planner',
+    this.title = 'Haftalık Plan',
     this.onCalendarTap,
     this.onMoreTap,
     this.moreMenuBuilder,
@@ -58,9 +59,9 @@ class PlannerTopBar extends StatelessWidget implements PreferredSizeWidget {
       title: Text(title),
       leading: IconButton(
         key: const Key('top_bar_calendar'),
-        icon: const Icon(Icons.calendar_view_week_outlined),
-        color: DesignTokens.blue500,
+        tooltip: 'Haftalık Plan',
         onPressed: onCalendarTap,
+        icon: const AppBrandMark(slot: 32, borderRadius: 8),
       ),
       actions: [
         if (extraActions != null) ...extraActions!,

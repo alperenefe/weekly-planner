@@ -17,8 +17,10 @@ void main() {
             initialNotes: null,
             initialDayIndex: 1,
             initialStartMinutes: null,
-            onSubmit: (title, durationMinutes, notes, dayIndex, startMinutes) async {
-              Object.hash(title, durationMinutes, notes, dayIndex, startMinutes);
+            onSubmit: (title, durationMinutes, notes, dayIndex, startMinutes,
+                accentColorArgb) async {
+              Object.hash(title, durationMinutes, notes, dayIndex, startMinutes,
+                  accentColorArgb);
             },
             onDeletePressed: () async {
               deleteCalls++;
@@ -28,6 +30,7 @@ void main() {
       ),
     );
 
+    await tester.ensureVisible(find.byKey(const Key('edit_task_delete')));
     await tester.tap(find.byKey(const Key('edit_task_delete')));
     await tester.pump();
 

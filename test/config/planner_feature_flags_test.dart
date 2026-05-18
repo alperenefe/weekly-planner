@@ -6,10 +6,32 @@ void main() {
     const original = PlannerFeatureFlags(
       copyLastWeekEnabled: false,
       scheduledBreaksEnabled: true,
+      weekSummaryTabEnabled: false,
+      historyExportTabEnabled: true,
+      planBoardSearchEnabled: false,
+      monthlyGoalsEnabled: false,
+      weekTemplatesEnabled: false,
     );
     final decoded = PlannerFeatureFlags.fromJson(original.toJson());
     expect(decoded.copyLastWeekEnabled, false);
     expect(decoded.scheduledBreaksEnabled, true);
+    expect(decoded.weekSummaryTabEnabled, false);
+    expect(decoded.historyExportTabEnabled, true);
+    expect(decoded.planBoardSearchEnabled, false);
+    expect(decoded.monthlyGoalsEnabled, false);
+    expect(decoded.weekTemplatesEnabled, false);
+  });
+
+  test('fromJson eksik anahtarlar true varsayar', () {
+    final decoded = PlannerFeatureFlags.fromJson(
+      <String, dynamic>{'copyLastWeekEnabled': false},
+    );
+    expect(decoded.copyLastWeekEnabled, false);
+    expect(decoded.weekSummaryTabEnabled, true);
+    expect(decoded.historyExportTabEnabled, true);
+    expect(decoded.planBoardSearchEnabled, true);
+    expect(decoded.monthlyGoalsEnabled, true);
+    expect(decoded.weekTemplatesEnabled, true);
   });
 
   test('tryParseStored invalid returns null', () {

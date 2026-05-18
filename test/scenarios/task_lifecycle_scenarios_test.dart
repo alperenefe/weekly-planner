@@ -72,7 +72,7 @@ void main() {
       final target = Offset(havuzCenter.dx, start.dy + 100);
 
       final gesture = await tester.startGesture(start);
-      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump(const Duration(milliseconds: 900));
       await gesture.moveTo(target);
       await tester.pump();
       await gesture.up();

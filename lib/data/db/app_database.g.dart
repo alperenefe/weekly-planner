@@ -126,6 +126,17 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _accentColorMeta = const VerificationMeta(
+    'accentColor',
+  );
+  @override
+  late final GeneratedColumn<int> accentColor = GeneratedColumn<int>(
+    'accent_color',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -172,6 +183,7 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     originalPlannedDate,
     movedCount,
     recurrenceTemplateId,
+    accentColor,
     createdAt,
     updatedAt,
     completedAt,
@@ -270,6 +282,15 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         ),
       );
     }
+    if (data.containsKey('accent_color')) {
+      context.handle(
+        _accentColorMeta,
+        accentColor.isAcceptableOrUnknown(
+          data['accent_color']!,
+          _accentColorMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -348,6 +369,10 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         DriftSqlType.int,
         data['${effectivePrefix}recurrence_template_id'],
       ),
+      accentColor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}accent_color'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}created_at'],
@@ -381,6 +406,7 @@ class Task extends DataClass implements Insertable<Task> {
   final String? originalPlannedDate;
   final int movedCount;
   final int? recurrenceTemplateId;
+  final int? accentColor;
   final String createdAt;
   final String updatedAt;
   final String? completedAt;
@@ -396,6 +422,7 @@ class Task extends DataClass implements Insertable<Task> {
     this.originalPlannedDate,
     required this.movedCount,
     this.recurrenceTemplateId,
+    this.accentColor,
     required this.createdAt,
     required this.updatedAt,
     this.completedAt,
@@ -425,6 +452,9 @@ class Task extends DataClass implements Insertable<Task> {
     map['moved_count'] = Variable<int>(movedCount);
     if (!nullToAbsent || recurrenceTemplateId != null) {
       map['recurrence_template_id'] = Variable<int>(recurrenceTemplateId);
+    }
+    if (!nullToAbsent || accentColor != null) {
+      map['accent_color'] = Variable<int>(accentColor);
     }
     map['created_at'] = Variable<String>(createdAt);
     map['updated_at'] = Variable<String>(updatedAt);
@@ -459,6 +489,9 @@ class Task extends DataClass implements Insertable<Task> {
       recurrenceTemplateId: recurrenceTemplateId == null && nullToAbsent
           ? const Value.absent()
           : Value(recurrenceTemplateId),
+      accentColor: accentColor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(accentColor),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       completedAt: completedAt == null && nullToAbsent
@@ -488,6 +521,7 @@ class Task extends DataClass implements Insertable<Task> {
       recurrenceTemplateId: serializer.fromJson<int?>(
         json['recurrenceTemplateId'],
       ),
+      accentColor: serializer.fromJson<int?>(json['accentColor']),
       createdAt: serializer.fromJson<String>(json['createdAt']),
       updatedAt: serializer.fromJson<String>(json['updatedAt']),
       completedAt: serializer.fromJson<String?>(json['completedAt']),
@@ -508,6 +542,7 @@ class Task extends DataClass implements Insertable<Task> {
       'originalPlannedDate': serializer.toJson<String?>(originalPlannedDate),
       'movedCount': serializer.toJson<int>(movedCount),
       'recurrenceTemplateId': serializer.toJson<int?>(recurrenceTemplateId),
+      'accentColor': serializer.toJson<int?>(accentColor),
       'createdAt': serializer.toJson<String>(createdAt),
       'updatedAt': serializer.toJson<String>(updatedAt),
       'completedAt': serializer.toJson<String?>(completedAt),
@@ -526,6 +561,7 @@ class Task extends DataClass implements Insertable<Task> {
     Value<String?> originalPlannedDate = const Value.absent(),
     int? movedCount,
     Value<int?> recurrenceTemplateId = const Value.absent(),
+    Value<int?> accentColor = const Value.absent(),
     String? createdAt,
     String? updatedAt,
     Value<String?> completedAt = const Value.absent(),
@@ -549,6 +585,7 @@ class Task extends DataClass implements Insertable<Task> {
     recurrenceTemplateId: recurrenceTemplateId.present
         ? recurrenceTemplateId.value
         : this.recurrenceTemplateId,
+    accentColor: accentColor.present ? accentColor.value : this.accentColor,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     completedAt: completedAt.present ? completedAt.value : this.completedAt,
@@ -578,6 +615,9 @@ class Task extends DataClass implements Insertable<Task> {
       recurrenceTemplateId: data.recurrenceTemplateId.present
           ? data.recurrenceTemplateId.value
           : this.recurrenceTemplateId,
+      accentColor: data.accentColor.present
+          ? data.accentColor.value
+          : this.accentColor,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       completedAt: data.completedAt.present
@@ -600,6 +640,7 @@ class Task extends DataClass implements Insertable<Task> {
           ..write('originalPlannedDate: $originalPlannedDate, ')
           ..write('movedCount: $movedCount, ')
           ..write('recurrenceTemplateId: $recurrenceTemplateId, ')
+          ..write('accentColor: $accentColor, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('completedAt: $completedAt')
@@ -620,6 +661,7 @@ class Task extends DataClass implements Insertable<Task> {
     originalPlannedDate,
     movedCount,
     recurrenceTemplateId,
+    accentColor,
     createdAt,
     updatedAt,
     completedAt,
@@ -639,6 +681,7 @@ class Task extends DataClass implements Insertable<Task> {
           other.originalPlannedDate == this.originalPlannedDate &&
           other.movedCount == this.movedCount &&
           other.recurrenceTemplateId == this.recurrenceTemplateId &&
+          other.accentColor == this.accentColor &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.completedAt == this.completedAt);
@@ -656,6 +699,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
   final Value<String?> originalPlannedDate;
   final Value<int> movedCount;
   final Value<int?> recurrenceTemplateId;
+  final Value<int?> accentColor;
   final Value<String> createdAt;
   final Value<String> updatedAt;
   final Value<String?> completedAt;
@@ -671,6 +715,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.originalPlannedDate = const Value.absent(),
     this.movedCount = const Value.absent(),
     this.recurrenceTemplateId = const Value.absent(),
+    this.accentColor = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.completedAt = const Value.absent(),
@@ -687,6 +732,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.originalPlannedDate = const Value.absent(),
     this.movedCount = const Value.absent(),
     this.recurrenceTemplateId = const Value.absent(),
+    this.accentColor = const Value.absent(),
     required String createdAt,
     required String updatedAt,
     this.completedAt = const Value.absent(),
@@ -706,6 +752,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Expression<String>? originalPlannedDate,
     Expression<int>? movedCount,
     Expression<int>? recurrenceTemplateId,
+    Expression<int>? accentColor,
     Expression<String>? createdAt,
     Expression<String>? updatedAt,
     Expression<String>? completedAt,
@@ -724,6 +771,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
       if (movedCount != null) 'moved_count': movedCount,
       if (recurrenceTemplateId != null)
         'recurrence_template_id': recurrenceTemplateId,
+      if (accentColor != null) 'accent_color': accentColor,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (completedAt != null) 'completed_at': completedAt,
@@ -742,6 +790,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Value<String?>? originalPlannedDate,
     Value<int>? movedCount,
     Value<int?>? recurrenceTemplateId,
+    Value<int?>? accentColor,
     Value<String>? createdAt,
     Value<String>? updatedAt,
     Value<String?>? completedAt,
@@ -758,6 +807,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
       originalPlannedDate: originalPlannedDate ?? this.originalPlannedDate,
       movedCount: movedCount ?? this.movedCount,
       recurrenceTemplateId: recurrenceTemplateId ?? this.recurrenceTemplateId,
+      accentColor: accentColor ?? this.accentColor,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       completedAt: completedAt ?? this.completedAt,
@@ -802,6 +852,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
     if (recurrenceTemplateId.present) {
       map['recurrence_template_id'] = Variable<int>(recurrenceTemplateId.value);
     }
+    if (accentColor.present) {
+      map['accent_color'] = Variable<int>(accentColor.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<String>(createdAt.value);
     }
@@ -828,6 +881,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
           ..write('originalPlannedDate: $originalPlannedDate, ')
           ..write('movedCount: $movedCount, ')
           ..write('recurrenceTemplateId: $recurrenceTemplateId, ')
+          ..write('accentColor: $accentColor, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('completedAt: $completedAt')

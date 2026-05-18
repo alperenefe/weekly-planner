@@ -32,7 +32,10 @@ class WeekNavigationBar extends StatelessWidget {
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: EdgeInsets.symmetric(
+            horizontal: DesignTokens.space2,
+            vertical: DesignTokens.space2,
+          ),
           child: Row(
             children: [
               IconButton(
@@ -49,7 +52,7 @@ class WeekNavigationBar extends StatelessWidget {
                   style: textStyle,
                 ),
               ),
-              ?trailingAction,
+              if (trailingAction != null) trailingAction!,
               IconButton(
                 key: const Key('week_nav_next'),
                 onPressed: onNext,

@@ -4,26 +4,78 @@ class PlannerFeatureFlags {
   const PlannerFeatureFlags({
     this.copyLastWeekEnabled = true,
     this.scheduledBreaksEnabled = true,
+    this.weekSummaryTabEnabled = true,
+    this.historyExportTabEnabled = true,
+    this.planBoardSearchEnabled = true,
+    this.monthlyGoalsEnabled = true,
+    this.weekTemplatesEnabled = true,
   });
 
   final bool copyLastWeekEnabled;
   final bool scheduledBreaksEnabled;
+  final bool weekSummaryTabEnabled;
+  final bool historyExportTabEnabled;
+  final bool planBoardSearchEnabled;
+  final bool monthlyGoalsEnabled;
+  final bool weekTemplatesEnabled;
 
   PlannerFeatureFlags copyWith({
     bool? copyLastWeekEnabled,
     bool? scheduledBreaksEnabled,
+    bool? weekSummaryTabEnabled,
+    bool? historyExportTabEnabled,
+    bool? planBoardSearchEnabled,
+    bool? monthlyGoalsEnabled,
+    bool? weekTemplatesEnabled,
   }) {
     return PlannerFeatureFlags(
-      copyLastWeekEnabled:
-          copyLastWeekEnabled ?? this.copyLastWeekEnabled,
+      copyLastWeekEnabled: copyLastWeekEnabled ?? this.copyLastWeekEnabled,
       scheduledBreaksEnabled:
           scheduledBreaksEnabled ?? this.scheduledBreaksEnabled,
+      weekSummaryTabEnabled:
+          weekSummaryTabEnabled ?? this.weekSummaryTabEnabled,
+      historyExportTabEnabled:
+          historyExportTabEnabled ?? this.historyExportTabEnabled,
+      planBoardSearchEnabled:
+          planBoardSearchEnabled ?? this.planBoardSearchEnabled,
+      monthlyGoalsEnabled:
+          monthlyGoalsEnabled ?? this.monthlyGoalsEnabled,
+      weekTemplatesEnabled:
+          weekTemplatesEnabled ?? this.weekTemplatesEnabled,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    return other is PlannerFeatureFlags &&
+        other.copyLastWeekEnabled == copyLastWeekEnabled &&
+        other.scheduledBreaksEnabled == scheduledBreaksEnabled &&
+        other.weekSummaryTabEnabled == weekSummaryTabEnabled &&
+        other.historyExportTabEnabled == historyExportTabEnabled &&
+        other.planBoardSearchEnabled == planBoardSearchEnabled &&
+        other.monthlyGoalsEnabled == monthlyGoalsEnabled &&
+        other.weekTemplatesEnabled == weekTemplatesEnabled;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        copyLastWeekEnabled,
+        scheduledBreaksEnabled,
+        weekSummaryTabEnabled,
+        historyExportTabEnabled,
+        planBoardSearchEnabled,
+        monthlyGoalsEnabled,
+        weekTemplatesEnabled,
+      );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'copyLastWeekEnabled': copyLastWeekEnabled,
         'scheduledBreaksEnabled': scheduledBreaksEnabled,
+        'weekSummaryTabEnabled': weekSummaryTabEnabled,
+        'historyExportTabEnabled': historyExportTabEnabled,
+        'planBoardSearchEnabled': planBoardSearchEnabled,
+        'monthlyGoalsEnabled': monthlyGoalsEnabled,
+        'weekTemplatesEnabled': weekTemplatesEnabled,
       };
 
   static PlannerFeatureFlags fromJson(Map<String, dynamic>? json) {
@@ -31,10 +83,16 @@ class PlannerFeatureFlags {
       return const PlannerFeatureFlags();
     }
     return PlannerFeatureFlags(
-      copyLastWeekEnabled:
-          (json['copyLastWeekEnabled'] as bool?) ?? true,
+      copyLastWeekEnabled: (json['copyLastWeekEnabled'] as bool?) ?? true,
       scheduledBreaksEnabled:
           (json['scheduledBreaksEnabled'] as bool?) ?? true,
+      weekSummaryTabEnabled: (json['weekSummaryTabEnabled'] as bool?) ?? true,
+      historyExportTabEnabled:
+          (json['historyExportTabEnabled'] as bool?) ?? true,
+      planBoardSearchEnabled:
+          (json['planBoardSearchEnabled'] as bool?) ?? true,
+      monthlyGoalsEnabled: (json['monthlyGoalsEnabled'] as bool?) ?? true,
+      weekTemplatesEnabled: (json['weekTemplatesEnabled'] as bool?) ?? true,
     );
   }
 

@@ -29,4 +29,25 @@ abstract final class DesignTokens {
   static const borderSubtle = slate700;
 
   static const topBarBlurTint = Color(0xE60F172A);
+
+  static const double space1 = 4;
+  static const double space2 = 8;
+  static const double space3 = 12;
+  static const double space4 = 16;
+  static const double space5 = 24;
+
+  static const Duration motionMedium = Duration(milliseconds: 240);
+
+  static const Color textMuted = Color(0xFFADB8C9);
+
+  static const List<int> taskAccentArgb = <int>[
+    0xFF2563EB,
+    0xFF7C3AED,
+    0xFFDB2777,
+    0xFFEA580C,
+    0xFF059669,
+    0xFF0891B2,
+    0xFFCA8A04,
+    0xFF4F46E5,
+  ];
 }

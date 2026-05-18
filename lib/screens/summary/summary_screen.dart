@@ -1,9 +1,14 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../data/repositories/monthly_goal_repository.dart';
+import '../../date/turkish_date.dart';
 import '../../date/week_calendar.dart';
+import '../../models/monthly_goal.dart';
+import '../../models/summary_analysis.dart';
 import '../../models/week_summary.dart';
 import '../../plan_data_revision.dart';
 import '../../plan_day_labels.dart';
@@ -22,6 +27,10 @@ class SummaryScreen extends StatefulWidget {
 class _SummaryScreenState extends State<SummaryScreen> {
   late String _weekStart;
   WeekSummary? _summary;
+  List<WeekTrendItem>? _trend;
+  MonthSummary? _monthSummary;
+  String _monthYyyyMm = '';
+  PostponeAnalysis? _postpone;
   bool _loading = true;
   PlanDataRevision? _planRevision;
 
@@ -55,10 +64,22 @@ class _SummaryScreenState extends State<SummaryScreen> {
       _loading = true;
     });
     final svc = context.read<SummaryService>();
-    final s = await svc.weekSummary(_weekStart);
+    final goalRepo = context.read<MonthlyGoalRepository>();
+    final week = _weekStart;
+    final currentMonth = yyyyMmFromDate(parseIsoDate(week));
+    final results = await Future.wait<Object>([
+      svc.weekSummary(week),
+      svc.weekTrend(week),
+      goalRepo.getMonthSummary(currentMonth),
+      svc.postponeAnalysis(week),
+    ]);
     if (!mounted) return;
     setState(() {
-      _summary = s;
+      _summary = results[0] as WeekSummary;
+      _trend = results[1] as List<WeekTrendItem>;
+      _monthSummary = results[2] as MonthSummary;
+      _monthYyyyMm = currentMonth;
+      _postpone = results[3] as PostponeAnalysis;
       _loading = false;
     });
   }
@@ -85,7 +106,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
             onNext: () => _shiftWeek(7),
           ),
           Expanded(
-            child: _loading || _summary == null
+            child: _loading ||
+                    _summary == null ||
+                    _trend == null ||
+                    _monthSummary == null ||
+                    _postpone == null
                 ? const Center(
                     child: CircularProgressIndicator(
                       color: DesignTokens.blue500,
@@ -94,6 +119,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 : _SummaryBody(
                     summary: _summary!,
                     weekStart: _weekStart,
+                    trend: _trend!,
+                    monthSummary: _monthSummary!,
+                    monthYyyyMm: _monthYyyyMm,
+                    postpone: _postpone!,
                   ),
           ),
         ],
@@ -119,10 +148,18 @@ class _SummaryBody extends StatelessWidget {
   const _SummaryBody({
     required this.summary,
     required this.weekStart,
+    required this.trend,
+    required this.monthSummary,
+    required this.monthYyyyMm,
+    required this.postpone,
   });
 
   final WeekSummary summary;
   final String weekStart;
+  final List<WeekTrendItem> trend;
+  final MonthSummary monthSummary;
+  final String monthYyyyMm;
+  final PostponeAnalysis postpone;
 
   @override
   Widget build(BuildContext context) {
@@ -170,17 +207,28 @@ class _SummaryBody extends StatelessWidget {
               const SizedBox(height: 24),
               _HeroCard(summary: summary),
               const SizedBox(height: 12),
+              _StatGridCard(summary: summary),
+              const SizedBox(height: 12),
               _PlannedDoneCard(
                 summary: summary,
                 pctRounded: pctRounded,
                 doneFrac: doneFrac,
               ),
               const SizedBox(height: 12),
+              _WeekTrendCard(trend: trend),
+              const SizedBox(height: 12),
               _DailyBreakdownCard(
                 summary: summary,
                 dayIsos: dayIsos,
                 maxDailyPlanned: maxDailyPlanned,
               ),
+              const SizedBox(height: 12),
+              _MonthlyGoalsCard(
+                monthSummary: monthSummary,
+                monthYyyyMm: monthYyyyMm,
+              ),
+              const SizedBox(height: 12),
+              _PostponeAnalysisCard(analysis: postpone),
             ],
           ),
         ),
@@ -286,6 +334,483 @@ class _HeroCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _StatGridCard extends StatelessWidget {
+  const _StatGridCard({required this.summary});
+
+  final WeekSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    Widget cell({
+      required int value,
+      required String label,
+      required IconData icon,
+      required Color iconColor,
+      Key? valueKey,
+    }) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: DesignTokens.slate900,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: DesignTokens.slate800),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Icon(icon, size: 20, color: iconColor),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$value',
+                    key: valueKey,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24,
+                      height: 1.1,
+                      color: DesignTokens.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontSize: 12,
+                      color: DesignTokens.slate400,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: DesignTokens.slate900,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: DesignTokens.slate800),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 1.45,
+              children: [
+                cell(
+                  value: summary.completedTasks,
+                  label: 'Tamamlanan',
+                  icon: Icons.check_circle_outline,
+                  iconColor: DesignTokens.green500,
+                  valueKey: const Key('summary_stat_completed'),
+                ),
+                cell(
+                  value: summary.skippedTasks,
+                  label: 'Atlanan',
+                  icon: Icons.close,
+                  iconColor: DesignTokens.amber500,
+                ),
+                cell(
+                  value: summary.movedTasks,
+                  label: 'Taşınan',
+                  icon: Icons.sync,
+                  iconColor: DesignTokens.blue400,
+                ),
+                cell(
+                  value: summary.poolRemainingTasks,
+                  label: 'Havuzda Kalan',
+                  icon: Icons.inbox_outlined,
+                  iconColor: DesignTokens.slate400,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WeekTrendCard extends StatelessWidget {
+  const _WeekTrendCard({required this.trend});
+
+  final List<WeekTrendItem> trend;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      key: const Key('summary_week_trend_card'),
+      decoration: BoxDecoration(
+        color: DesignTokens.slate900,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: DesignTokens.slate800),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Son 4 Hafta',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: DesignTokens.white,
+              ),
+            ),
+            const SizedBox(height: 12),
+            for (var i = 0; i < trend.length; i++) ...[
+              if (i > 0) const SizedBox(height: 10),
+              _TrendRow(
+                item: trend[i],
+                accent: i == 0,
+                rowKey: Key('summary_trend_row_$i'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TrendRow extends StatelessWidget {
+  const _TrendRow({
+    required this.item,
+    required this.accent,
+    required this.rowKey,
+  });
+
+  final WeekTrendItem item;
+  final bool accent;
+  final Key rowKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final labelColor = accent ? DesignTokens.blue400 : DesignTokens.slate400;
+    final pct = item.completionPercent.clamp(0.0, 100.0);
+    final frac = pct / 100.0;
+    final pctText = '%${pct.round()}';
+    return Row(
+      key: rowKey,
+      children: [
+        SizedBox(
+          width: 80,
+          child: Text(
+            item.weekLabel,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: 12,
+              color: labelColor,
+              fontWeight: accent ? FontWeight.w600 : null,
+            ),
+          ),
+        ),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: SizedBox(
+              height: 8,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  const ColoredBox(color: DesignTokens.slate800),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: frac,
+                      child: const ColoredBox(color: DesignTokens.blue600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        SizedBox(
+          width: 40,
+          child: Text(
+            pctText,
+            textAlign: TextAlign.right,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: 12,
+              color: DesignTokens.slate400,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MonthlyGoalsCard extends StatelessWidget {
+  const _MonthlyGoalsCard({
+    required this.monthSummary,
+    required this.monthYyyyMm,
+  });
+
+  final MonthSummary monthSummary;
+  final String monthYyyyMm;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final titleMonth = trMonthYearFromYyyyMm(monthYyyyMm);
+    final total = monthSummary.totalGoals;
+    final done = monthSummary.doneGoals;
+    final frac = total == 0 ? 0.0 : (done / total).clamp(0.0, 1.0);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => context.push('/goals'),
+        borderRadius: BorderRadius.circular(12),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: DesignTokens.slate900,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: DesignTokens.slate800),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Aylık Hedefler',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        color: DesignTokens.white,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      titleMonth,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 12,
+                        color: DesignTokens.slate500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (total == 0)
+                  Text(
+                    'Bu ay henüz hedef yok',
+                    key: const Key('summary_monthly_empty'),
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: DesignTokens.slate500,
+                    ),
+                  )
+                else ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(5),
+                    child: SizedBox(
+                      height: 10,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          const ColoredBox(color: DesignTokens.slate800),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: FractionallySizedBox(
+                              widthFactor: frac,
+                              child: const ColoredBox(color: DesignTokens.blue600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$done / $total tamamlandı',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: DesignTokens.slate500,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PostponeAnalysisCard extends StatelessWidget {
+  const _PostponeAnalysisCard({required this.analysis});
+
+  final PostponeAnalysis analysis;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasMoved = analysis.mostMovedTasks.isNotEmpty;
+    final avg = analysis.avgMovesPerMovedTask;
+    String? insight;
+    if (avg >= 2.0) {
+      insight = 'Bu görevler planlamayı zorluyor olabilir.';
+    } else if (hasMoved) {
+      insight = 'Bazı görevler birden fazla güne taşındı.';
+    }
+
+    Color statusDot(String status) {
+      switch (status) {
+        case 'done':
+          return DesignTokens.green500;
+        case 'skipped':
+          return const Color(0xFFEF4444);
+        default:
+          return DesignTokens.slate500;
+      }
+    }
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: DesignTokens.slate900,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: DesignTokens.slate800),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Erteleme Analizi',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: DesignTokens.white,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (!hasMoved)
+              Text(
+                'Bu hafta hiç görev ertelenmedi 🎯',
+                key: const Key('summary_postpone_empty'),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: DesignTokens.green500,
+                  fontWeight: FontWeight.w500,
+                ),
+              )
+            else ...[
+              Text(
+                '✓ ${analysis.neverMovedCompleted} görev hiç ertelenmeden tamamlandı',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: DesignTokens.green500,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '↷ Ortalama ${avg.toStringAsFixed(1)} erteleme / taşınan görev',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: DesignTokens.slate500,
+                  fontSize: 12,
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Divider(height: 1, color: DesignTokens.slate800),
+              ),
+              Text(
+                'En çok ertelenen görevler:',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontSize: 12,
+                  color: DesignTokens.slate500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              for (final t in analysis.mostMovedTasks) ...[
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: statusDot(t.status),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          t.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: DesignTokens.slate200,
+                          ),
+                        ),
+                      ),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: const Color(0x4D78350F),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          child: Text(
+                            '${t.movedCount}×',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: const Color(0xFFFBBF24),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+            if (insight != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                insight,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  color: DesignTokens.slate500,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

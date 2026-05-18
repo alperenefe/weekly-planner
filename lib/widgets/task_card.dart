@@ -25,6 +25,10 @@ class TaskCard extends StatelessWidget {
   bool get _inPool => task.plannedDate == null;
 
   Color get _stripeColor {
+    final custom = task.accentColor;
+    if (custom != null) {
+      return Color(custom);
+    }
     if (_inPool) {
       return DesignTokens.slate600;
     }
@@ -151,49 +155,22 @@ class TaskCard extends StatelessWidget {
     }
 
     Widget titleAndMetaColumn() {
-      if (onBodyTap != null) {
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onBodyTap,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  task.title,
-                  key: Key('task_title_${task.id}'),
-                  style: titleStyle,
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    timeChip(),
-                    durationRow(),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      }
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      final column = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             task.title,
             key: Key('task_title_${task.id}'),
             style: titleStyle,
+            textAlign: TextAlign.start,
           ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 6,
             crossAxisAlignment: WrapCrossAlignment.center,
+            alignment: WrapAlignment.start,
             children: [
               timeChip(),
               durationRow(),
@@ -201,6 +178,20 @@ class TaskCard extends StatelessWidget {
           ),
         ],
       );
+      final fullWidth = SizedBox(
+        width: double.infinity,
+        child: column,
+      );
+      if (onBodyTap != null) {
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onBodyTap,
+            child: fullWidth,
+          ),
+        );
+      }
+      return fullWidth;
     }
 
     final stackBody = Stack(

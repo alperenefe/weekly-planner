@@ -1,8 +1,12 @@
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
+import '../data/db/app_database.dart';
 import '../date/week_calendar.dart';
 import '../plan_day_labels.dart';
+import '../services/task_focus_timer_controller.dart';
 import '../theme/design_tokens.dart';
 
 typedef EditTaskSubmit = Future<void> Function(
@@ -11,6 +15,7 @@ typedef EditTaskSubmit = Future<void> Function(
   String? notes,
   int dayIndex,
   int? startMinutes,
+  int? accentColorArgb,
 );
 
 typedef EditTaskDeletePressed = Future<void> Function();
@@ -23,7 +28,10 @@ class EditTaskSheet extends StatefulWidget {
     required this.initialNotes,
     required this.initialDayIndex,
     required this.initialStartMinutes,
+    this.initialAccentColor,
     required this.onSubmit,
+    this.taskEntity,
+    this.onStartFocus,
     this.onDeletePressed,
   });
 
@@ -32,7 +40,10 @@ class EditTaskSheet extends StatefulWidget {
   final String? initialNotes;
   final int initialDayIndex;
   final int? initialStartMinutes;
+  final int? initialAccentColor;
   final EditTaskSubmit onSubmit;
+  final Task? taskEntity;
+  final Future<void> Function(Task draft)? onStartFocus;
   final EditTaskDeletePressed? onDeletePressed;
 
   @override
@@ -47,16 +58,20 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
   bool _saving = false;
   late bool _useStartTime;
   late int _startMinutes;
+  int? _accentArgb;
+  bool _didPreloadFocusBudget = false;
 
   @override
   void initState() {
     super.initState();
     final d = widget.initialDayIndex;
     _selectedDayIndex = d < 0 || d > 7 ? 0 : d;
+    _accentArgb = widget.initialAccentColor ?? widget.taskEntity?.accentColor;
     _titleController = TextEditingController(text: widget.initialTitle);
     _durationController = TextEditingController(
       text: widget.initialDurationMinutes?.toString() ?? '',
     );
+    _durationController.addListener(_onFormFieldsChanged);
     _notesController = TextEditingController(text: widget.initialNotes ?? '');
     final sm = widget.initialStartMinutes;
     _useStartTime = sm != null;
@@ -65,12 +80,27 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
     );
   }
 
+  void _onFormFieldsChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _durationController.removeListener(_onFormFieldsChanged);
     _titleController.dispose();
     _durationController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didPreloadFocusBudget || widget.onStartFocus == null) return;
+    _didPreloadFocusBudget = true;
+    context.read<TaskFocusTimerController>().preloadPartialGoals().then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   InputDecoration _fieldDec(String label, {String? hint}) {
@@ -119,11 +149,36 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
         notesRaw.isEmpty ? null : notesRaw,
         _selectedDayIndex,
         startMinutes,
+        _accentArgb,
       );
     } finally {
       if (mounted) {
         setState(() => _saving = false);
       }
+    }
+  }
+
+  Future<void> _onStartFocusPressed() async {
+    final seed = widget.taskEntity;
+    final cb = widget.onStartFocus;
+    if (seed == null || cb == null || _saving) return;
+    final d = int.tryParse(_durationController.text.trim());
+    if (d == null || d <= 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Önce süre (dakika) gir')),
+        );
+      }
+      return;
+    }
+    final title = _titleController.text.trim();
+    final draft = seed.copyWith(
+      title: title.isEmpty ? seed.title : title,
+      durationMinutes: Value(d),
+    );
+    await cb(draft);
+    if (mounted) {
+      Navigator.of(context).maybePop();
     }
   }
 
@@ -217,6 +272,61 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
                         ],
                         textInputAction: TextInputAction.next,
                       ),
+                      if (widget.onStartFocus != null &&
+                          widget.taskEntity != null &&
+                          widget.taskEntity!.status == 'planned') ...[
+                        const SizedBox(height: 12),
+                        Selector<TaskFocusTimerController, (int, int)>(
+                          selector: (_, c) {
+                            final t = widget.taskEntity!;
+                            final d = int.tryParse(
+                                  _durationController.text.trim(),
+                                ) ??
+                                t.durationMinutes ??
+                                0;
+                            if (d <= 0) return (-1, -1);
+                            final g = d * 60;
+                            final rem = c.budgetRemainingSeconds(
+                              taskId: t.id,
+                              goalTotalSeconds: g,
+                            );
+                            return (g, rem);
+                          },
+                          builder: (context, pair, _) {
+                            final goalSec = pair.$1;
+                            final remSec = pair.$2;
+                            final String label;
+                            if (goalSec <= 0) {
+                              label = 'Süreyi başlat';
+                            } else if (remSec < goalSec) {
+                              label =
+                                  'Devam et (${(remSec + 59) ~/ 60} dk kaldı)';
+                            } else {
+                              label = 'Süreyi başlat';
+                            }
+                            return OutlinedButton.icon(
+                              key: const Key('edit_task_start_focus'),
+                              onPressed:
+                                  _saving ? null : _onStartFocusPressed,
+                              icon: const Icon(
+                                Icons.play_circle_outline,
+                                color: DesignTokens.blue400,
+                              ),
+                              label: Text(label),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: DesignTokens.blue400,
+                                side: const BorderSide(
+                                  color: DesignTokens.slate700,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                  horizontal: 16,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       SwitchListTile(
                         key: const Key('edit_task_start_toggle'),
@@ -330,6 +440,65 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
                         minLines: 3,
                         maxLines: 6,
                         textInputAction: TextInputAction.newline,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Vurgu rengi',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: DesignTokens.slate400,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          GestureDetector(
+                            onTap: () => setState(() => _accentArgb = null),
+                            child: Container(
+                              width: 30,
+                              height: 30,
+                              decoration: BoxDecoration(
+                                color: DesignTokens.slate800,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: _accentArgb == null
+                                      ? DesignTokens.blue400
+                                      : DesignTokens.slate600,
+                                  width: 2,
+                                ),
+                              ),
+                              alignment: Alignment.center,
+                              child: Icon(
+                                Icons.close,
+                                size: 14,
+                                color: _accentArgb == null
+                                    ? DesignTokens.blue400
+                                    : DesignTokens.slate500,
+                              ),
+                            ),
+                          ),
+                          for (final argb in DesignTokens.taskAccentArgb)
+                            GestureDetector(
+                              onTap: () => setState(() => _accentArgb = argb),
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: Color(argb),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: _accentArgb == argb
+                                        ? DesignTokens.white
+                                        : Colors.transparent,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const Padding(
                         padding: EdgeInsets.only(top: 16),

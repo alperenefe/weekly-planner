@@ -34,6 +34,8 @@ class Tasks extends Table {
   IntColumn get recurrenceTemplateId =>
       integer().named('recurrence_template_id').nullable()();
 
+  IntColumn get accentColor => integer().named('accent_color').nullable()();
+
   TextColumn get createdAt => text().named('created_at')();
 
   TextColumn get updatedAt => text().named('updated_at')();
@@ -105,12 +107,41 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (Migrator m) async {
           await m.createAll();
+          await m.database.customStatement(
+            'CREATE TABLE IF NOT EXISTS monthly_goals ('
+            'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+            'title TEXT NOT NULL, '
+            'month TEXT NOT NULL, '
+            'order_index INTEGER NOT NULL, '
+            'status TEXT NOT NULL DEFAULT \'active\', '
+            'created_at TEXT NOT NULL, '
+            'updated_at TEXT NOT NULL'
+            ')',
+          );
+          await m.database.customStatement(
+            'CREATE TABLE IF NOT EXISTS week_templates ('
+            'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+            'name TEXT NOT NULL, '
+            'created_at TEXT NOT NULL'
+            ')',
+          );
+          await m.database.customStatement(
+            'CREATE TABLE IF NOT EXISTS week_template_tasks ('
+            'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+            'template_id INTEGER NOT NULL, '
+            'title TEXT NOT NULL, '
+            'duration_minutes INTEGER, '
+            'notes TEXT, '
+            'target_weekday INTEGER, '
+            'order_index INTEGER NOT NULL'
+            ')',
+          );
         },
         onUpgrade: (Migrator m, int from, int to) async {
           if (from < 2) {
@@ -121,6 +152,42 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 4) {
             await m.addColumn(tasks, tasks.startMinutes);
+          }
+          if (from < 5) {
+            await m.database.customStatement(
+              'CREATE TABLE IF NOT EXISTS monthly_goals ('
+              'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+              'title TEXT NOT NULL, '
+              'month TEXT NOT NULL, '
+              'order_index INTEGER NOT NULL, '
+              'status TEXT NOT NULL DEFAULT \'active\', '
+              'created_at TEXT NOT NULL, '
+              'updated_at TEXT NOT NULL'
+              ')',
+            );
+          }
+          if (from < 6) {
+            await m.database.customStatement(
+              'CREATE TABLE IF NOT EXISTS week_templates ('
+              'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+              'name TEXT NOT NULL, '
+              'created_at TEXT NOT NULL'
+              ')',
+            );
+            await m.database.customStatement(
+              'CREATE TABLE IF NOT EXISTS week_template_tasks ('
+              'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+              'template_id INTEGER NOT NULL, '
+              'title TEXT NOT NULL, '
+              'duration_minutes INTEGER, '
+              'notes TEXT, '
+              'target_weekday INTEGER, '
+              'order_index INTEGER NOT NULL'
+              ')',
+            );
+          }
+          if (from < 7) {
+            await m.addColumn(tasks, tasks.accentColor);
           }
         },
       );

@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import '../data/db/app_database.dart';
 import '../data/repositories/recurring_template_repository.dart';
 import '../data/repositories/task_repository.dart';
+import '../date/week_calendar.dart';
 
 class WeekService {
   WeekService({
@@ -24,6 +25,11 @@ class WeekService {
       if (exists) {
         continue;
       }
+      final tw = template.targetWeekday;
+      String? plannedIso;
+      if (tw != null && tw >= 1 && tw <= 7) {
+        plannedIso = plannedDateForChipIndex(weekStart, tw);
+      }
       await taskRepository.insertTask(
         TasksCompanion.insert(
           title: template.title,
@@ -35,6 +41,12 @@ class WeekService {
               : Value(template.notes),
           recurrenceTemplateId: Value(template.id),
           weekStart: weekStart,
+          plannedDate: plannedIso == null
+              ? const Value.absent()
+              : Value(plannedIso),
+          originalPlannedDate: plannedIso == null
+              ? const Value.absent()
+              : Value(plannedIso),
           createdAt: now,
           updatedAt: now,
         ),

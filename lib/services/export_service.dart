@@ -26,6 +26,7 @@ class ExportService {
         'plannedDate': t.plannedDate,
         'durationMinutes': t.durationMinutes,
         'startMinutes': t.startMinutes,
+        'accentColor': t.accentColor,
         'movedCount': t.movedCount,
         'notes': t.notes,
         'history': histories

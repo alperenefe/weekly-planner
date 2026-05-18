@@ -230,7 +230,7 @@ void main() {
 
     final t = (await repo.getDayTasks(week, wed)).single;
     expect(t.title, 'M');
-    expect(t.movedCount, 0);
+    expect(t.movedCount, 1);
     expect(t.plannedDate, wed);
 
     final moved = await (db.select(db.taskHistories)
@@ -261,7 +261,7 @@ void main() {
     final pool = await repo.getPoolTasks(week);
     expect(pool.single.id, id);
     expect(pool.single.plannedDate, isNull);
-    expect(pool.single.movedCount, 0);
+    expect(pool.single.movedCount, 1);
   });
 
   test('moveTask from pool to day increments moved_count', () async {
@@ -425,7 +425,88 @@ void main() {
     expect(past, [w2, w1]);
   });
 
-  test('resetAllData clears tasks task_history week_meta recurring_templates', () async {
+  test('getMostMovedTasks returns tasks ordered by moved_count desc', () async {
+    const week = '2024-11-04';
+    final now = DateTime.utc(2024, 11, 1, 8).toIso8601String();
+    await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'low',
+        weekStart: week,
+        movedCount: const Value(1),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'high',
+        weekStart: week,
+        movedCount: const Value(9),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'mid',
+        weekStart: week,
+        movedCount: const Value(4),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    final list = await repo.getMostMovedTasks(week);
+    expect(list.map((t) => t.title).toList(), ['high', 'mid', 'low']);
+  });
+
+  test('getMostMovedTasks respects limit param', () async {
+    const week = '2024-11-11';
+    final now = DateTime.utc(2024, 11, 1, 8).toIso8601String();
+    for (var i = 0; i < 6; i++) {
+      await repo.insertTask(
+        TasksCompanion.insert(
+          title: 't$i',
+          weekStart: week,
+          movedCount: Value(6 - i),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+    }
+    final list = await repo.getMostMovedTasks(week, limit: 2);
+    expect(list.length, 2);
+    expect(list.first.title, 't0');
+    expect(list.last.title, 't1');
+  });
+
+  test('getMostMovedTasks only returns tasks for given weekStart', () async {
+    const w1 = '2024-11-18';
+    const w2 = '2024-11-25';
+    final now = DateTime.utc(2024, 11, 1, 8).toIso8601String();
+    await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'other',
+        weekStart: w2,
+        movedCount: const Value(5),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'mine',
+        weekStart: w1,
+        movedCount: const Value(2),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    final list = await repo.getMostMovedTasks(w1);
+    expect(list.length, 1);
+    expect(list.single.title, 'mine');
+  });
+
+  test('resetAllData clears tasks task_history week_meta recurring_templates monthly_goals week_templates', () async {
     const week = '2024-10-28';
     final now = DateTime.utc(2024, 10, 28, 8).toIso8601String();
     await repo.insertTask(
@@ -448,11 +529,29 @@ void main() {
         createdAt: now,
       ),
     );
+    await db.customStatement(
+      'INSERT INTO monthly_goals (title, month, order_index, status, created_at, updated_at) '
+      "VALUES ('g', '2024-10', 1, 'active', ?, ?)",
+      [now, now],
+    );
+
+    await db.customStatement(
+      'INSERT INTO week_templates (name, created_at) VALUES (?, ?)',
+      ['Tpl', now],
+    );
+    final wtId = await db.customSelect('SELECT last_insert_rowid() AS id').getSingle();
+    final tid = wtId.read<int>('id');
+    await db.customStatement(
+      'INSERT INTO week_template_tasks (template_id, title, order_index) VALUES (?, ?, ?)',
+      [tid, 't', 0],
+    );
 
     expect(await db.select(db.tasks).get(), isNotEmpty);
     expect(await db.select(db.taskHistories).get(), isNotEmpty);
     expect(await db.select(db.weekMetas).get(), isNotEmpty);
     expect(await db.select(db.recurringTemplates).get(), isNotEmpty);
+    final mgBefore = await db.customSelect('SELECT COUNT(*) AS c FROM monthly_goals').getSingle();
+    expect(mgBefore.read<int>('c'), 1);
 
     await repo.resetAllData();
 
@@ -460,5 +559,11 @@ void main() {
     expect(await db.select(db.taskHistories).get(), isEmpty);
     expect(await db.select(db.weekMetas).get(), isEmpty);
     expect(await db.select(db.recurringTemplates).get(), isEmpty);
+    final mgAfter = await db.customSelect('SELECT COUNT(*) AS c FROM monthly_goals').getSingle();
+    expect(mgAfter.read<int>('c'), 0);
+    final wtAfter = await db.customSelect('SELECT COUNT(*) AS c FROM week_templates').getSingle();
+    expect(wtAfter.read<int>('c'), 0);
+    final wttAfter = await db.customSelect('SELECT COUNT(*) AS c FROM week_template_tasks').getSingle();
+    expect(wttAfter.read<int>('c'), 0);
   });
 }

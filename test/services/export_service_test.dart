@@ -52,7 +52,8 @@ void main() {
     expect(t['plannedDate'], '2024-10-29');
     expect(t['durationMinutes'], 60);
     expect(t['startMinutes'], isNull);
-    expect(t['movedCount'], 0);
+    expect(t['accentColor'], isNull);
+    expect(t['movedCount'], 1);
     expect(t['notes'], isNull);
     final hist = t['history'] as List<dynamic>;
     expect(hist.length, greaterThanOrEqualTo(2));
