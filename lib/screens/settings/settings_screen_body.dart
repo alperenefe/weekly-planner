@@ -73,6 +73,8 @@ class _SettingsScrollBody extends StatelessWidget {
           ),
           onTap: () => unawaited(state._seedDemoData()),
         ),
+        const SizedBox(height: 8),
+        const AppUpdateCard(),
         const SizedBox(height: 24),
         Text(
           'Planlama',

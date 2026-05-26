@@ -3,7 +3,11 @@
 **Repo:** [alperenefe/weekly-planner](https://github.com/alperenefe/weekly-planner)  
 **Android paket adı:** `com.weeklyplanner.weekly_planner`
 
-Müzik Teorisi ile aynı akış: yalnızca **Actions → Run workflow** ile APK derlenir ve Firebase’e gider.
+Müzik Teorisi ile aynı akış: `deploy-remote.ps1` veya `[apk]` push → CI → Firebase.
+
+## Uygulama içi güncelleme
+
+Release APK açılışta güncellemeyi kontrol eder. **Ayarlar** ekranında «Güncellemeyi kontrol et». İlk seferde tester Google girişi; `GOOGLE_SERVICES_JSON` CI secret veya yerel `google-services.json` gerekir.
 
 ---
 
