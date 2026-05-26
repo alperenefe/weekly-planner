@@ -1,6 +1,6 @@
 # Plan kaydır — test ve kabul senaryoları
 
-Bu dosya **Planı kaydır** (mola / kaydırma) akışı için ön koşul, adım ve beklenen sonuçları tanımlar. Geliştirme veya manuel QA sırasında referans olarak kullanılabilir.
+Bu dosya **Günlük planı kaydır** (mola / kaydırma) akışı için ön koşul, adım ve beklenen sonuçları tanımlar. Geliştirme veya manuel QA sırasında referans olarak kullanılabilir.
 
 ---
 
@@ -8,9 +8,9 @@ Bu dosya **Planı kaydır** (mola / kaydırma) akışı için ön koşul, adım 
 
 | Alan | İçerik |
 |------|--------|
-| **Ön koşul** | Ayarlarda “Planı kaydır” açık. Haftalık plan ekranı görünür. |
-| **Adımlar** | 1) Üç nokta menüsüne dokun. 2) “Planı kaydır” öğesine dokun. |
-| **Beklenen** | Alt sheet açılır; başlık “Planı kaydır”; gün chip’leri (Pzt–Paz) görünür. |
+| **Ön koşul** | Ayarlarda “Günlük planı kaydır” açık. Haftalık plan ekranı görünür. |
+| **Adımlar** | 1) Üç nokta menüsüne dokun. 2) “Günlük planı kaydır” öğesine dokun. |
+| **Beklenen** | Alt sheet açılır; başlık “Günlük planı kaydır”; gün chip’leri (Pzt–Paz) görünür. |
 
 ---
 
@@ -19,7 +19,7 @@ Bu dosya **Planı kaydır** (mola / kaydırma) akışı için ön koşul, adım 
 | Alan | İçerik |
 |------|--------|
 | **Ön koşul** | Görüntülenen hafta içinde **bugün** cumartesi. O gün için 09:00, 10:00, 11:00 başlangıçlı saatli etkinlikler var. Cihaz saati öğleden sonra (ör. 16:09). |
-| **Adımlar** | 1) Planı kaydır sheet’ini aç. 2) Gün olarak **Cmt** seçili olsun (varsayılan bugün ise dokunma gerekmez). |
+| **Adımlar** | 1) Günlük planı kaydır sheet’ini aç. 2) Gün olarak **Cmt** seçili olsun (varsayılan bugün ise dokunma gerekmez). |
 | **Beklenen** | Çapa alanında **09:00, 10:00, 11:00** chip’leri görünür. “Bu gün için uygun çapa yok…” metni **görünmez**. **Uygula** etkindir (dakika > 0 iken). |
 
 ---
@@ -88,18 +88,18 @@ Bu dosya **Planı kaydır** (mola / kaydırma) akışı için ön koşul, adım 
 
 | Alan | İçerik |
 |------|--------|
-| **Ön koşul** | Ayarlarda “Planı kaydır” kapalı. |
+| **Ön koşul** | Ayarlarda “Günlük planı kaydır” kapalı. |
 | **Adımlar** | Üç nokta menüsünü aç. |
-| **Beklenen** | Menüde **“Planı kaydır”** görünmez; **“Haftayı yenile”** görünmeye devam edebilir. |
+| **Beklenen** | Menüde **“Günlük planı kaydır”** görünmez; **“Listeyi yenile”** görünmeye devam edebilir. |
 
 ---
 
-## S10 — Haftayı yenile (menü)
+## S10 — Listeyi yenile (menü)
 
 | Alan | İçerik |
 |------|--------|
 | **Ön koşul** | Haftalık plan ekranı. |
-| **Adımlar** | Üç nokta → **Haftayı yenile**. |
+| **Adımlar** | Üç nokta → **Listeyi yenile**. |
 | **Beklenen** | Hafta verisi yeniden yüklenir (tahta/görev listesi güncel kaynaktan gelir). |
 
 ---
@@ -119,7 +119,7 @@ Tüm senaryolar için otomatik testler: **`test/scenarios/plan_kaydir_scenarios_
 | S7 | `S7 Uygula snackbar ve veritabanında…` |
 | S8 | `S8 (repo)` grubu — çapa sonrası görev yoksa 0 |
 | S9 | `S9 özellik kapalıyken…` |
-| S10 | `S10 Haftayı yenile…` |
+| S10 | `S10 Listeyi yenile…` |
 
 Ek repo kapsamı: `test/data/task_repository_test.dart` içinde `shiftPlannedDayTasksAfterAnchor`.
 

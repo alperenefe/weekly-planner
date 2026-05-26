@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:weekly_planner/config/planner_feature_flags.dart';
 import 'package:weekly_planner/data/db/app_database.dart';
 import 'package:weekly_planner/data/repositories/task_repository.dart';
 import 'package:weekly_planner/date/week_calendar.dart';
@@ -42,19 +43,44 @@ void main() {
     expect(find.byKey(const Key('settings_feature_plan_search')), findsOneWidget);
 
     await tester.scrollUntilVisible(
-      find.byKey(const Key('settings_week_templates_row')),
+      find.byKey(
+        const Key('settings_week_templates_row'),
+        skipOffstage: false,
+      ),
       500,
     );
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('settings_week_templates_row')), findsOneWidget);
+    expect(
+      find.byKey(
+        const Key('settings_week_templates_row'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
 
     await tester.scrollUntilVisible(
-      find.byKey(const Key('settings_reset_all_row')),
+      find.text('Her hafta otomatik görev kuralları'),
+      500,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Her hafta otomatik görev kuralları'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.byKey(
+        const Key('settings_reset_all_row'),
+        skipOffstage: false,
+      ),
       500,
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('settings_reset_all_row')), findsOneWidget);
+    expect(
+      find.byKey(
+        const Key('settings_reset_all_row'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('reset all data clears database', (tester) async {
@@ -94,5 +120,25 @@ void main() {
 
     expect(await db.select(db.tasks).get(), isEmpty);
     expect(await db.select(db.taskHistories).get(), isEmpty);
+  });
+
+  testWidgets('weekTemplates kapalıyken kayıtlı plan satırı gizlenir', (tester) async {
+    final db = AppDatabase.memory();
+    addTearDown(() async {
+      await db.close();
+    });
+    await tester.pumpWidget(
+      plannerAppWithDb(
+        db,
+        featureFlags: const PlannerFeatureFlags(weekTemplatesEnabled: false),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('nav_settings')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('settings_week_templates_row')), findsNothing);
+    expect(find.byKey(const Key('settings_about_row')), findsOneWidget);
   });
 }

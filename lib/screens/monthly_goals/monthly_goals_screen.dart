@@ -11,7 +11,9 @@ import '../../models/monthly_goal.dart';
 import '../../plan_day_labels.dart';
 import '../../plan_data_revision.dart';
 import '../../services/monthly_goal_service.dart';
+import '../../services/reminder_scheduler_service.dart';
 import '../../theme/design_tokens.dart';
+import '../../widgets/planner_dialogs.dart';
 import '../../widgets/planner_top_bar.dart';
 
 class MonthlyGoalsScreen extends StatefulWidget {
@@ -26,7 +28,6 @@ class _MonthlyGoalsScreenState extends State<MonthlyGoalsScreen> {
   List<MonthlyGoal> _goals = [];
   MonthSummary _summary = const MonthSummary(totalGoals: 0, doneGoals: 0);
   bool _loading = true;
-  bool _showAddRow = false;
   final TextEditingController _newGoalController = TextEditingController();
 
   @override
@@ -58,7 +59,6 @@ class _MonthlyGoalsScreenState extends State<MonthlyGoalsScreen> {
   void _shiftMonth(int delta) {
     setState(() {
       _monthYyyyMm = addMonthsYyyyMm(_monthYyyyMm, delta);
-      _showAddRow = false;
       _newGoalController.clear();
     });
     unawaited(_reload());
@@ -79,7 +79,6 @@ class _MonthlyGoalsScreenState extends State<MonthlyGoalsScreen> {
     );
     if (!mounted) return;
     _newGoalController.clear();
-    setState(() => _showAddRow = false);
     await _reload();
   }
 
@@ -90,7 +89,28 @@ class _MonthlyGoalsScreenState extends State<MonthlyGoalsScreen> {
     } else {
       await repo.markGoalDone(g.id);
     }
-    if (mounted) await _reload();
+    if (!mounted) return;
+    context.read<PlanDataRevision>().bump();
+    await _reload();
+  }
+
+  Future<void> _openGoalReminderSheet(MonthlyGoal goal) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) {
+        return _GoalReminderSheet(
+          goal: goal,
+          sheetContext: sheetContext,
+          onSaved: () async {
+            if (!mounted) return;
+            context.read<PlanDataRevision>().bump();
+            await _reload();
+          },
+        );
+      },
+    );
   }
 
   Future<void> _openAddToWeekSheet(MonthlyGoal goal) async {
@@ -117,15 +137,6 @@ class _MonthlyGoalsScreenState extends State<MonthlyGoalsScreen> {
       key: const Key('monthly_goals_screen'),
       backgroundColor: DesignTokens.slate950,
       appBar: const PlannerTopBar(title: 'Aylık hedefler'),
-      floatingActionButton: FloatingActionButton(
-        key: const Key('monthly_goals_fab'),
-        onPressed: () {
-          setState(() => _showAddRow = !_showAddRow);
-        },
-        backgroundColor: DesignTokens.blue600,
-        foregroundColor: DesignTokens.white,
-        child: Icon(_showAddRow ? Icons.close : Icons.add),
-      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -188,9 +199,58 @@ class _MonthlyGoalsScreenState extends State<MonthlyGoalsScreen> {
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
                     children: [
-                      if (_goals.isEmpty && !_showAddRow)
+                      Padding(
+                        key: const Key('monthly_goals_add_inline'),
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: DesignTokens.slate900,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: DesignTokens.slate800),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    key: const Key('monthly_goals_new_title'),
+                                    controller: _newGoalController,
+                                    style: theme.textTheme.bodyLarge
+                                        ?.copyWith(color: DesignTokens.white),
+                                    decoration: InputDecoration(
+                                      hintText: 'Yeni hedef…',
+                                      hintStyle: TextStyle(
+                                        color: DesignTokens.slate500,
+                                      ),
+                                      filled: true,
+                                      fillColor: DesignTokens.slate950,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                        borderSide: const BorderSide(
+                                          color: DesignTokens.slate800,
+                                        ),
+                                      ),
+                                    ),
+                                    onSubmitted: (_) => unawaited(_submitNewGoal()),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  key: const Key('monthly_goals_new_submit'),
+                                  onPressed: () => unawaited(_submitNewGoal()),
+                                  icon: const Icon(Icons.add_circle),
+                                  color: DesignTokens.blue400,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (_goals.isEmpty)
                         Padding(
-                          padding: const EdgeInsets.only(top: 32),
+                          padding: const EdgeInsets.only(top: 16),
                           child: Text(
                             'Bu ay henüz hedef yok',
                             key: const Key('monthly_goals_empty_hint'),
@@ -200,72 +260,13 @@ class _MonthlyGoalsScreenState extends State<MonthlyGoalsScreen> {
                             ),
                           ),
                         ),
-                      for (final g in _goals) _GoalRow(
-                        goal: g,
-                        onToggleDone: () => unawaited(_toggleDone(g)),
-                        onAddToWeek: () => unawaited(_openAddToWeekSheet(g)),
-                      ),
-                      AnimatedSize(
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.easeInOut,
-                        child: _showAddRow
-                            ? Padding(
-                                key: const Key('monthly_goals_add_inline'),
-                                padding: const EdgeInsets.only(top: 12),
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: DesignTokens.slate900,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: DesignTokens.slate800),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(12),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        TextField(
-                                          key: const Key(
-                                            'monthly_goals_new_title',
-                                          ),
-                                          controller: _newGoalController,
-                                          autofocus: true,
-                                          style: theme.textTheme.bodyLarge
-                                              ?.copyWith(color: DesignTokens.white),
-                                          decoration: InputDecoration(
-                                            hintText: 'Hedef başlığı',
-                                            hintStyle: TextStyle(
-                                              color: DesignTokens.slate500,
-                                            ),
-                                            filled: true,
-                                            fillColor: DesignTokens.slate950,
-                                            border: OutlineInputBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                              borderSide: const BorderSide(
-                                                color: DesignTokens.slate800,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        Align(
-                                          alignment: Alignment.centerRight,
-                                          child: FilledButton(
-                                            key: const Key(
-                                              'monthly_goals_new_submit',
-                                            ),
-                                            onPressed: _submitNewGoal,
-                                            child: const Text('Ekle'),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                      ),
+                      for (final g in _goals)
+                        _GoalRow(
+                          goal: g,
+                          onToggleDone: () => unawaited(_toggleDone(g)),
+                          onAddToWeek: () => unawaited(_openAddToWeekSheet(g)),
+                          onReminder: () => unawaited(_openGoalReminderSheet(g)),
+                        ),
                     ],
                   ),
           ),
@@ -280,11 +281,13 @@ class _GoalRow extends StatelessWidget {
     required this.goal,
     required this.onToggleDone,
     required this.onAddToWeek,
+    required this.onReminder,
   });
 
   final MonthlyGoal goal;
   final VoidCallback onToggleDone;
   final VoidCallback onAddToWeek;
+  final VoidCallback onReminder;
 
   @override
   Widget build(BuildContext context) {
@@ -341,6 +344,18 @@ class _GoalRow extends StatelessWidget {
                   ),
                 ),
                 IconButton(
+                  key: Key('monthly_goals_reminder_${goal.id}'),
+                  onPressed: done ? null : onReminder,
+                  icon: Icon(
+                    goal.reminderEnabled
+                        ? Icons.notifications_active
+                        : Icons.notifications_none_outlined,
+                    color: goal.reminderEnabled
+                        ? DesignTokens.blue400
+                        : DesignTokens.slate400,
+                  ),
+                ),
+                IconButton(
                   key: Key('monthly_goals_add_week_${goal.id}'),
                   onPressed: onAddToWeek,
                   icon: const Icon(Icons.calendar_today_outlined),
@@ -380,7 +395,6 @@ class _AddGoalToWeekSheetBodyState extends State<_AddGoalToWeekSheetBody> {
     if (!p.mounted) return;
     final svc = p.read<MonthlyGoalService>();
     final revision = p.read<PlanDataRevision>();
-    final messenger = ScaffoldMessenger.of(p);
     final idx = _selected.isEmpty ? 0 : _selected.first;
     final planned = plannedDateForChipIndex(widget.weekStart, idx);
     await svc.addGoalToWeek(widget.goal, widget.weekStart, planned);
@@ -388,9 +402,7 @@ class _AddGoalToWeekSheetBodyState extends State<_AddGoalToWeekSheetBody> {
     if (widget.sheetContext.mounted) {
       Navigator.of(widget.sheetContext).pop();
     }
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Göreve eklendi')),
-    );
+    showPlannerSnackBar(widget.sheetContext, 'Göreve eklendi');
   }
 
   @override
@@ -462,6 +474,174 @@ class _AddGoalToWeekSheetBodyState extends State<_AddGoalToWeekSheetBody> {
                   key: const Key('monthly_goals_add_to_week_confirm'),
                   onPressed: _onSubmit,
                   child: const Text('Ekle'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GoalReminderSheet extends StatefulWidget {
+  const _GoalReminderSheet({
+    required this.goal,
+    required this.sheetContext,
+    required this.onSaved,
+  });
+
+  final MonthlyGoal goal;
+  final BuildContext sheetContext;
+  final Future<void> Function() onSaved;
+
+  @override
+  State<_GoalReminderSheet> createState() => _GoalReminderSheetState();
+}
+
+class _GoalReminderSheetState extends State<_GoalReminderSheet> {
+  late bool _enabled;
+  late int _weekday;
+  late int _minutes;
+
+  @override
+  void initState() {
+    super.initState();
+    _enabled = widget.goal.reminderEnabled;
+    _weekday = widget.goal.reminderWeekday ?? DateTime.monday;
+    _minutes = widget.goal.reminderMinutes ?? 9 * 60;
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: _minutes ~/ 60, minute: _minutes % 60),
+      builder: (ctx, child) {
+        return Theme(
+          data: Theme.of(ctx).copyWith(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: DesignTokens.blue500,
+              brightness: Brightness.dark,
+            ).copyWith(surface: DesignTokens.slate900),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _minutes = snappedStartMinutesFromWallClock(
+        hour: picked.hour,
+        minute: picked.minute,
+      );
+    });
+  }
+
+  Future<void> _save() async {
+    final repo = context.read<MonthlyGoalRepository>();
+    await repo.updateGoalReminder(
+      widget.goal.id,
+      enabled: _enabled,
+      weekday: _enabled ? _weekday : null,
+      minutes: _enabled ? _minutes : null,
+    );
+    if (widget.sheetContext.mounted) {
+      Navigator.of(widget.sheetContext).pop();
+    }
+    await widget.onSaved();
+    if (!context.mounted) return;
+    await context.read<ReminderSchedulerService>().syncAll();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+    const weekdayLabels = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottom),
+      child: Material(
+        key: const Key('monthly_goal_reminder_sheet'),
+        color: DesignTokens.slate950,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Hedef hatırlatıcısı',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: DesignTokens.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.goal.title,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: DesignTokens.slate400,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SwitchListTile(
+                  key: const Key('monthly_goal_reminder_toggle'),
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    'Hatırlat',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: DesignTokens.white,
+                    ),
+                  ),
+                  value: _enabled,
+                  onChanged: (v) => setState(() => _enabled = v),
+                  activeThumbColor: DesignTokens.blue400,
+                ),
+                if (_enabled) ...[
+                  Text(
+                    'Gün',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: DesignTokens.slate400,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      for (var d = 1; d <= 7; d++)
+                        ChoiceChip(
+                          key: Key('monthly_goal_reminder_wd_$d'),
+                          label: Text(weekdayLabels[d - 1]),
+                          selected: _weekday == d,
+                          onSelected: (_) => setState(() => _weekday = d),
+                          selectedColor: DesignTokens.blue600,
+                          labelStyle: TextStyle(
+                            color: _weekday == d
+                                ? DesignTokens.white
+                                : DesignTokens.slate400,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    key: const Key('monthly_goal_reminder_time'),
+                    onPressed: _pickTime,
+                    icon: const Icon(Icons.schedule, size: 18),
+                    label: Text('Saat: ${formatClockMinutes(_minutes)}'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: DesignTokens.blue400,
+                      side: const BorderSide(color: DesignTokens.slate700),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                FilledButton(
+                  key: const Key('monthly_goal_reminder_save'),
+                  onPressed: () => unawaited(_save()),
+                  child: const Text('Kaydet'),
                 ),
               ],
             ),

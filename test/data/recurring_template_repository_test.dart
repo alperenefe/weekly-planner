@@ -36,7 +36,7 @@ void main() {
     expect(active.single.isActive, 1);
   });
 
-  test('deactivateTemplate hides from getActiveTemplates', () async {
+  test('inactive template hidden from getActiveTemplates', () async {
     final now = DateTime.utc(2025, 1, 2, 8).toIso8601String();
     final id = await repo.insertTemplate(
       RecurringTemplatesCompanion.insert(
@@ -44,7 +44,10 @@ void main() {
         createdAt: now,
       ),
     );
-    await repo.deactivateTemplate(id);
+    await repo.updateTemplate(
+      id,
+      const RecurringTemplatesCompanion(isActive: Value(0)),
+    );
     final active = await repo.getActiveTemplates();
     expect(active, isEmpty);
   });

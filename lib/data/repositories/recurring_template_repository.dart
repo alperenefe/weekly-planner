@@ -31,10 +31,4 @@ class RecurringTemplateRepository {
   Future<void> deleteTemplate(int id) {
     return (_db.delete(_db.recurringTemplates)..where((t) => t.id.equals(id))).go();
   }
-
-  Future<void> deactivateTemplate(int id) {
-    return (_db.update(_db.recurringTemplates)..where((t) => t.id.equals(id))).write(
-          const RecurringTemplatesCompanion(isActive: Value(0)),
-        );
-  }
 }

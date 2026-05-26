@@ -87,6 +87,17 @@ void main() {
     expect((await taskRepo.getTasksForWeek(weekStart)).length, 3);
   });
 
+  test('applyTemplate twice doubles task count', () async {
+    const weekStart = '2025-04-07';
+    final tplId = await weekTplRepo.insertTemplate('Dup');
+    await weekTplRepo.insertTemplateTask(
+      WeekTemplateTasksCompanion.insert(templateId: tplId, title: 'A'),
+    );
+    await svc.applyTemplate(tplId, weekStart);
+    await svc.applyTemplate(tplId, weekStart);
+    expect((await taskRepo.getTasksForWeek(weekStart)).length, 2);
+  });
+
   test('applyTemplate calls PlanDataRevision bump', () async {
     final tplId = await weekTplRepo.insertTemplate('B');
     await weekTplRepo.insertTemplateTask(

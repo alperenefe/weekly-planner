@@ -6,7 +6,7 @@ import 'package:weekly_planner/data/repositories/week_template_repository.dart';
 import '../test_support.dart';
 
 void main() {
-  testWidgets('empty state shows Henüz şablon yok', (tester) async {
+  testWidgets('empty state shows Henüz kayıtlı plan yok', (tester) async {
     final db = AppDatabase.memory();
     addTearDown(() async {
       await db.close();
@@ -26,7 +26,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('week_templates_empty')), findsOneWidget);
-    expect(find.text('Henüz şablon yok'), findsOneWidget);
+    expect(find.text('Henüz kayıtlı plan yok'), findsOneWidget);
   });
 
   testWidgets('creating a template shows it in the list', (tester) async {
@@ -89,6 +89,9 @@ void main() {
     await tester.tap(find.byKey(Key('week_template_delete_$tid')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Bu şablon silinecek. Emin misin?'), findsOneWidget);
+    expect(
+      find.text('Bu kayıtlı hafta planı silinecek. Emin misin?'),
+      findsOneWidget,
+    );
   });
 }

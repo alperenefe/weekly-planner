@@ -48,6 +48,36 @@ class TaskRepository {
         .get();
   }
 
+  /// `week_start` bu hafta ama `planned_date` bu haftanın günlerinde değil (görünmez kalmasın diye havuzda gösterilir).
+  Future<List<Task>> getTasksWithActiveReminders() {
+    return (_db.select(_db.tasks)
+          ..where(
+            (t) =>
+                t.reminderEnabled.equals(1) & t.status.equals('planned'),
+          ))
+        .get();
+  }
+
+  Future<List<int>> getTaskIdsWithReminderFlag() async {
+    final rows = await (_db.select(_db.tasks)
+          ..where((t) => t.reminderEnabled.equals(1)))
+        .get();
+    return rows.map((t) => t.id).toList();
+  }
+
+  Future<List<Task>> getOrphanPlannedTasks(String weekStart) async {
+    final allowed = weekdayIsosFromMonday(weekStart).toSet();
+    final rows = await (_db.select(_db.tasks)
+          ..where(
+            (t) => t.weekStart.equals(weekStart) & t.plannedDate.isNotNull(),
+          ))
+        .get();
+    final orphans =
+        rows.where((t) => !allowed.contains(t.plannedDate)).toList();
+    orphans.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    return orphans;
+  }
+
   Future<List<Task>> getDayTasks(String weekStart, String date) async {
     final rows = await (_db.select(_db.tasks)
           ..where((t) => t.weekStart.equals(weekStart) & t.plannedDate.equals(date)))
@@ -312,6 +342,60 @@ class TaskRepository {
       await _db.customStatement('DELETE FROM monthly_goals');
       await _db.customStatement('DELETE FROM week_template_tasks');
       await _db.customStatement('DELETE FROM week_templates');
+    });
+  }
+
+  Future<void> markSkipped(int taskId) {
+    return _db.transaction(() async {
+      final row = await (_db.select(_db.tasks)..where((t) => t.id.equals(taskId)))
+          .getSingleOrNull();
+      if (row == null) {
+        throw StateError('task not found: $taskId');
+      }
+      if (row.status != 'planned') {
+        return;
+      }
+      final now = DateTime.now().toUtc().toIso8601String();
+      await (_db.update(_db.tasks)..where((t) => t.id.equals(taskId))).write(
+            TasksCompanion(
+              status: const Value('skipped'),
+              updatedAt: Value(now),
+            ),
+          );
+      await _db.into(_db.taskHistories).insert(
+            TaskHistoriesCompanion.insert(
+              taskId: taskId,
+              eventType: 'skipped',
+              timestamp: now,
+            ),
+          );
+    });
+  }
+
+  Future<void> unmarkSkipped(int taskId) {
+    return _db.transaction(() async {
+      final row = await (_db.select(_db.tasks)..where((t) => t.id.equals(taskId)))
+          .getSingleOrNull();
+      if (row == null) {
+        throw StateError('task not found: $taskId');
+      }
+      if (row.status != 'skipped') {
+        return;
+      }
+      final now = DateTime.now().toUtc().toIso8601String();
+      await (_db.update(_db.tasks)..where((t) => t.id.equals(taskId))).write(
+            TasksCompanion(
+              status: const Value('planned'),
+              updatedAt: Value(now),
+            ),
+          );
+      await _db.into(_db.taskHistories).insert(
+            TaskHistoriesCompanion.insert(
+              taskId: taskId,
+              eventType: 'reopened',
+              timestamp: now,
+            ),
+          );
     });
   }
 

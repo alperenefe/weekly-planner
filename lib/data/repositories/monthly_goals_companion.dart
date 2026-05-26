@@ -7,6 +7,9 @@ final class MonthlyGoalsCompanion {
     this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.reminderEnabled = const Value.absent(),
+    this.reminderWeekday = const Value.absent(),
+    this.reminderMinutes = const Value.absent(),
   });
 
   final Value<String> title;
@@ -14,6 +17,9 @@ final class MonthlyGoalsCompanion {
   final Value<String> status;
   final Value<String> createdAt;
   final Value<String> updatedAt;
+  final Value<bool> reminderEnabled;
+  final Value<int?> reminderWeekday;
+  final Value<int?> reminderMinutes;
 
   factory MonthlyGoalsCompanion.insert({
     required String title,
@@ -21,6 +27,9 @@ final class MonthlyGoalsCompanion {
     Value<String> status = const Value.absent(),
     required String createdAt,
     required String updatedAt,
+    bool reminderEnabled = false,
+    int? reminderWeekday,
+    int? reminderMinutes,
   }) {
     return MonthlyGoalsCompanion(
       title: Value(title),
@@ -28,6 +37,9 @@ final class MonthlyGoalsCompanion {
       status: status,
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      reminderEnabled: Value(reminderEnabled),
+      reminderWeekday: Value(reminderWeekday),
+      reminderMinutes: Value(reminderMinutes),
     );
   }
 }

@@ -19,7 +19,8 @@ Bu dosya projeyi tek seferde anlatmak için tutulur: mimari, ekranlar, veri, bay
 | Framework | Flutter (Dart SDK `pubspec.yaml` içindeki sürüm) |
 | Durum / DI | `provider` (`MultiProvider` kökte) |
 | Router | `go_router` — `StatefulShellRoute.indexedStack` (5 dal: plan, özet, geçmiş, hedefler, ayarlar) |
-| Veri | Drift + `sqlite3_flutter_libs`; şema `lib/data/db/app_database.dart` |
+| Veri | Drift + `sqlite3_flutter_libs`; şema v9 `lib/data/db/app_database.dart` (indeksler + `reminder_*` sütunları) |
+| Bildirimler | `flutter_local_notifications` + `timezone`; odak süresi + hatırlatıcı kanalı (`lib/services/planner_local_notifications.dart`) |
 | Paylaşım | `share_plus` (export) |
 | Sürüm satırı | `package_info_plus` (Ayarlar → Hakkında) |
 
@@ -27,7 +28,7 @@ Bu dosya projeyi tek seferde anlatmak için tutulur: mimari, ekranlar, veri, bay
 
 ## Giriş noktası ve sağlayıcılar
 
-- `lib/main.dart`: `AppDatabase.open()`, `TaskRepository`, `RecurringTemplateRepository`, `MonthlyGoalRepository`, `MonthlyGoalService`, `WeekService`, `SummaryService`, `ExportService`, `PlannerFeatureFlagsStore`, `PlanDataRevision`; `runApp(MultiProvider(..., child: WeeklyPlannerApp()))`.
+- `lib/main.dart`: DB + repolar + `PlannerLocalNotifications`, `ReminderSettingsStore`, `ReminderSchedulerService` (`PlanDataRevision` dinleyerek `syncAll`), `PlannerFeatureFlagsStore`, odak süresi; `runApp(MultiProvider(...))`.
 - `lib/app.dart`: `WeeklyPlannerApp` — `didChangeDependencies` içinde bir kez `AppRouter.createRouter(featureFlagsStore)`; `dispose`’da `GoRouter.dispose()`. `build` içinde `context.watch<PlannerFeatureFlagsStore>()` ile bayrak değişince router yenilenir.
 
 ---
@@ -36,7 +37,7 @@ Bu dosya projeyi tek seferde anlatmak için tutulur: mimari, ekranlar, veri, bay
 
 - `lib/router/app_router.dart`: `GoRouter` `refreshListenable: PlannerFeatureFlagsStore`.
 - **Yollar:** `/plan`, `/summary`, `/history`, `/goals`, `/settings` (hepsi aynı shell içinde).
-- **Redirect:** `weekSummaryTabEnabled == false` ve yol `/summary` → `/plan`. `historyExportTabEnabled == false` ve yol `/history` → `/plan`. `monthlyGoalsEnabled == false` ve yol `/goals` → `/plan`.
+- **Redirect:** `weekSummaryTabEnabled == false` ve yol `/summary` → `/plan`. `historyExportTabEnabled == false` ve yol `/history` → `/plan`. `monthlyGoalsEnabled == false` ve yol `/goals` → `/plan`. `recurringTemplatesEnabled == false` ve `/settings/recurring-templates` → `/settings`. `weekTemplatesEnabled == false` ve `/settings/templates` → `/settings`.
 - Shell: `lib/screens/shell/main_shell.dart` — gövde `navigationShell`, alt bar `PlannerBottomNav` + `buildPlannerNavSpec(flags)`.
 
 ---
@@ -55,11 +56,13 @@ Depo: `lib/services/planner_feature_flags_store.dart` — anahtar `planner_featu
 | Bayrak | Varsayılan | Etki (kısa) |
 |--------|------------|-------------|
 | `copyLastWeekEnabled` | true | Plan ekranında “geçen haftayı kopyala” düğmesi |
-| `scheduledBreaksEnabled` | true | Üst menüde “Planı kaydır” (`PlanShiftSheet`) |
+| `scheduledBreaksEnabled` | true | Üst menüde “Günlük planı kaydır” (`PlanShiftSheet`) |
 | `weekSummaryTabEnabled` | true | Özet sekmesi + `/summary` |
 | `historyExportTabEnabled` | true | Geçmiş sekmesi + `/history` |
 | `planBoardSearchEnabled` | true | Plan ekranında arama ikonu / alanı |
+| `recurringTemplatesEnabled` | true | Her hafta otomatik görev kuralları (`WeekService.ensureWeekTasks`) ve Ayarlar → Planlama girişi |
 | `monthlyGoalsEnabled` | true | Hedefler sekmesi + `/goals` |
+| `weekTemplatesEnabled` | true | Plan ekranında kayıtlı hafta planını uygula düğmesi |
 
 Ayarlar ekranında her biri için `SwitchListTile` (test anahtarları: `settings_feature_*`).
 
@@ -69,11 +72,12 @@ Ayarlar ekranında her biri için `SwitchListTile` (test anahtarları: `settings
 
 | Ekran | Dosya | Not |
 |-------|--------|-----|
-| Haftalık plan tahtası | `lib/screens/weekly_plan/weekly_plan_screen.dart` (+ `weekly_plan_*` yardımcıları) | Havuz + 7 gün sütunu; hafta ileri/geri; FAB ekleme; sürükle-bırak taşıma; arama (bayrak); “bugün” özeti satırı |
-| Özet | `lib/screens/summary/summary_screen.dart` | `SummaryService.weekSummary` + `weekTrend` + `postponeAnalysis`; görev sayıları ızgarası, son 4 hafta tamamlanma çubuğu, aylık hedef özeti (`MonthlyGoalRepository`), erteleme analizi (`TaskRepository.getMostMovedTasks`); `/goals` kısayolu |
-| Geçmiş / dışa aktarma | `lib/screens/history_export/history_export_screen.dart` | Geçmiş haftalar, JSON/LLM metin export, panoya kopya, paylaş |
-| Aylık hedefler | `lib/screens/monthly_goals/monthly_goals_screen.dart` | `YYYY-MM` ay seçici; hedef listesi; haftaya görev ekleme (`MonthlyGoalService` + `PlanDataRevision`) |
-| Ayarlar | `lib/screens/settings/settings_screen.dart` | Hakkında, özellik anahtarları, tüm veriyi sıfırla |
+| Haftalık plan tahtası | `lib/screens/weekly_plan/weekly_plan_screen.dart` (+ `weekly_plan_*` yardımcıları) | Havuz + 7 gün; sürükle-bırak; **gün pill şeridi** (`weekly_plan_today_pill.dart`); sütun **mini ilerleme çubuğu**; kartta **Taşı** (`quick_move_sheet.dart`), **Atla** (`markSkipped`); odak **“X dk odak”** rozeti |
+| Özet | `lib/screens/summary/summary_screen.dart` | Hero’da **duygusal başlık** (`summary_hero_copy.dart`); trend, erteleme, aylık hedef özeti |
+| Geçmiş / dışa aktarma | `lib/screens/history_export/history_export_screen.dart` | Geçmiş haftalar; export öncesi **önizleme kartı**; JSON/LLM, paylaş |
+| Aylık hedefler | `lib/screens/monthly_goals/monthly_goals_screen.dart` | Üstte **sürekli inline** hedef ekleme satırı; haftaya görev ekleme |
+| Ayarlar | `lib/screens/settings/settings_screen.dart` | Hatırlatıcılar; planlama; **Örnek veri yükle** (`demo_data_seeder.dart`); sıfırla |
+| İlk açılış | `lib/widgets/onboarding_dialog.dart` | 3 slayt onboarding (`OnboardingStore`); testlerde otomatik tamamlanmış sayılır |
 
 **Ortak UI:** `PlannerTopBar`, `WeekNavigationBar`, `BoardColumn`, `TaskCard`, `AddTaskSheet`, `EditTaskSheet`, `PlanShiftSheet`, `PlannerBottomNav`.
 
@@ -81,7 +85,11 @@ Ayarlar ekranında her biri için `SwitchListTile` (test anahtarları: `settings
 
 ## Haftalık plan davranışı
 
-- Hafta Pazartesi ISO tarihi (`week_calendar`) ile kimlenir; `WeekService.ensureWeekTasks` şablonlardan havuz görevleri üretir.
+- Hafta Pazartesi ISO tarihi (`week_calendar`, yerel gün) ile kimlenir; `WeekService.ensureWeekTasks` **otomatik görev kurallarından** (`recurring_templates`) havuza görev üretir.
+- `planned_date` bu haftanın günlerinde değilse görev **havuzda** listelenir (kartta uyarı); üst sol ikon → takvimden hafta seçimi.
+- Taşıma sayacı (`moved_count`, 🔥): sürükle-bırak ile gün/havuz değişince +1; 3+ taşımada “sık taşınıyor” snackbar. Alternatif: kart **Taşı** → `QuickMoveSheet` (gün/havuz chip).
+- **Atla:** planlı görev `skipped`; turuncu ikon; tekrar dokununca `planned` (`unmarkSkipped`).
+- Alt navigasyon: sekme değişiminde kısa **fade + scale** (`main_shell.dart`).
 - Veri yenileme: `PlanDataRevision` dinleyicileri ile plan ekranı / özet / geçmiş senkron kalır; bazı akışlarda `bump()` çağrılır.
 - Görev yaşam döngüsü ve senaryolar: `docs/senaryolar_gorev_akislari.md`, test: `test/scenarios/task_lifecycle_scenarios_test.dart`.
 - Plan kaydır: `docs/senaryolar_plan_kaydir.md`, test: `test/scenarios/plan_kaydir_scenarios_test.dart`.
@@ -90,14 +98,16 @@ Ayarlar ekranında her biri için `SwitchListTile` (test anahtarları: `settings
 
 ## Veri modeli (Drift tabloları)
 
-- **`tasks`:** başlık, süre, başlangıç dakikası, notlar, `status`, `week_start`, `planned_date`, `original_planned_date`, `moved_count`, `recurrence_template_id`, zaman damgaları, `completed_at`.
+- **`tasks`:** … + `reminder_enabled`, `reminder_minutes` (v9; etkinlik sheet’inde “Hatırlatıcı”).
 - **`task_history`:** görev olay geçmişi (`event_type`, from/to, not).
 - **`week_meta`:** hafta bazında `copy_from_previous_applied` (geçen hafta kopyası işareti).
-- **`recurring_templates`:** tekrarlayan şablonlar (`RecurringTemplateRepository`).
-- **`monthly_goals`:** (şema sürümü 5) `title`, `month` (`YYYY-MM`), `order_index`, `status` (`active`/`done`), `created_at`, `updated_at` — ham SQL + `MonthlyGoalRepository`.
-- **`week_templates` / `week_template_tasks`:** (şema 6) haftalık ön tanımlı plan şablonları; `WeekTemplateRepository`, `WeekTemplateService`, ekran: `lib/screens/week_templates/`, rota: `/settings/templates`, `/settings/templates/:templateId`.
+- **`recurring_templates`:** her hafta otomatik eklenecek **tek etkinlik kuralları** (`RecurringTemplateRepository`); arayüz: “Her hafta otomatik görevler”.
+- **`monthly_goals`:** … + `reminder_enabled`, `reminder_weekday` (1=Pzt…7=Paz), `reminder_minutes` (v9; hedef satırında çan ikonu).
+- **`week_templates` / `week_template_tasks`:** (şema 6) **kayıtlı hafta planı** (çoklu görev); manuel uygulama `WeekTemplateService.applyTemplate`; `WeekTemplateRepository`, ekran: `lib/screens/week_templates/`, rota: `/settings/templates`, `/settings/templates/:templateId`.
 
-İş kuralları ve sorgular: `lib/data/repositories/task_repository.dart`, `monthly_goal_repository.dart`, `week_template_repository.dart`, `week_service.dart`, `summary_service.dart`, `export_service.dart`, `monthly_goal_service.dart`.
+İş kuralları ve sorgular: `lib/data/repositories/task_repository.dart`, `monthly_goal_repository.dart`, …
+
+**Hatırlatıcılar (v9):** `ReminderSettingsStore` (SP: ana anahtar, günlük özet açık/saat). `ReminderSchedulerService` plan revizyonunda tüm zamanlamaları yeniler; tamamlanan/silinen görevlerin bildirimleri iptal edilir. Etkinlik: havuz + günlük sütun sheet’lerinde toggle+saat. Ayarlar: “Hatırlatıcılar”, “Günlük özet” (ör. her gün 08:00 bugünün işleri).
 
 ---
 

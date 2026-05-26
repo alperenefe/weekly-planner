@@ -12,6 +12,8 @@ class BoardColumn extends StatelessWidget {
     required this.child,
     this.subdued = false,
     this.titleHighlightToday = false,
+    this.doneCount,
+    this.taskCount,
   });
 
   final String title;
@@ -21,6 +23,8 @@ class BoardColumn extends StatelessWidget {
   final Widget child;
   final bool subdued;
   final bool titleHighlightToday;
+  final int? doneCount;
+  final int? taskCount;
 
   @override
   Widget build(BuildContext context) {
@@ -94,6 +98,19 @@ class BoardColumn extends StatelessWidget {
                         letterSpacing: 1.2,
                         fontSize: 12,
                       ),
+                ),
+              ],
+              if (taskCount != null && taskCount! > 0) ...[
+                SizedBox(height: DesignTokens.space1),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    key: Key('board_col_progress_$title'),
+                    value: (doneCount ?? 0) / taskCount!,
+                    minHeight: 4,
+                    backgroundColor: DesignTokens.slate800,
+                    color: DesignTokens.blue500,
+                  ),
                 ),
               ],
               SizedBox(height: DesignTokens.space2),

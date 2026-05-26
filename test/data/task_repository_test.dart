@@ -566,4 +566,43 @@ void main() {
     final wttAfter = await db.customSelect('SELECT COUNT(*) AS c FROM week_template_tasks').getSingle();
     expect(wttAfter.read<int>('c'), 0);
   });
+
+  test('getOrphanPlannedTasks returns planned_date outside current week only', () async {
+    const week = '2025-01-13';
+    final now = DateTime.utc(2025, 1, 1).toIso8601String();
+    await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'Havuz',
+        weekStart: week,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'Salı',
+        weekStart: week,
+        plannedDate: const Value('2025-01-14'),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'Yetim',
+        weekStart: week,
+        plannedDate: const Value('2025-02-01'),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    final orphans = await repo.getOrphanPlannedTasks(week);
+    expect(orphans, hasLength(1));
+    expect(orphans.single.title, 'Yetim');
+
+    final pool = await repo.getPoolTasks(week);
+    expect(pool, hasLength(1));
+    expect(pool.single.title, 'Havuz');
+  });
 }

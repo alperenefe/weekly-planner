@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../date/week_calendar.dart';
 import '../data/db/app_database.dart';
+import '../services/task_focus_timer_controller.dart';
 import '../theme/design_tokens.dart';
 
 class TaskCard extends StatelessWidget {
@@ -9,20 +11,36 @@ class TaskCard extends StatelessWidget {
     super.key,
     required this.task,
     required this.onMarkDone,
+    this.weekMondayIso,
     this.onUnmarkDone,
+    this.onMarkSkipped,
+    this.onUnmarkSkipped,
+    this.onQuickMove,
     this.onBodyTap,
     this.onDelete,
     this.dragSlotWrapper,
   });
 
   final Task task;
+  /// Havuzda hafta dışı `planned_date` uyarısı için (plan ekranı).
+  final String? weekMondayIso;
   final Future<void> Function() onMarkDone;
   final Future<void> Function()? onUnmarkDone;
+  final Future<void> Function()? onMarkSkipped;
+  final Future<void> Function()? onUnmarkSkipped;
+  final VoidCallback? onQuickMove;
   final VoidCallback? onBodyTap;
   final Future<void> Function()? onDelete;
   final Widget Function(Widget dragBody)? dragSlotWrapper;
 
   bool get _inPool => task.plannedDate == null;
+
+  bool get _plannedDateOutsideWeek {
+    final w = weekMondayIso;
+    final p = task.plannedDate;
+    if (w == null || p == null) return false;
+    return !isPlannedDateInWeek(w, p);
+  }
 
   Color get _stripeColor {
     final custom = task.accentColor;
@@ -95,6 +113,20 @@ class TaskCard extends StatelessWidget {
         );
       }
       if (skipped) {
+        if (onUnmarkSkipped != null) {
+          return InkWell(
+            key: Key('task_card_unmark_skipped_${task.id}'),
+            customBorder: const CircleBorder(),
+            onTap: () async {
+              await onUnmarkSkipped!();
+            },
+            child: Icon(
+              Icons.remove_circle_outline,
+              size: 18,
+              color: DesignTokens.amber500.withValues(alpha: 0.9),
+            ),
+          );
+        }
         return Icon(
           Icons.remove_circle_outline,
           size: 18,
@@ -154,6 +186,83 @@ class TaskCard extends StatelessWidget {
       );
     }
 
+    Widget focusSpentChip() {
+      if (task.durationMinutes == null || task.durationMinutes! <= 0) {
+        return const SizedBox.shrink();
+      }
+      return Selector<TaskFocusTimerController, int?>(
+        selector: (_, c) {
+          final goalSec = task.durationMinutes! * 60;
+          final rem = c.budgetRemainingSeconds(
+            taskId: task.id,
+            goalTotalSeconds: goalSec,
+          );
+          if (rem >= goalSec) return null;
+          final spentSec = goalSec - rem;
+          final mins = (spentSec + 59) ~/ 60;
+          return mins > 0 ? mins : null;
+        },
+        builder: (_, minsSpent, _) {
+          if (minsSpent == null) return const SizedBox.shrink();
+          return Container(
+            key: Key('task_focus_spent_${task.id}'),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0x3322C55E),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              '$minsSpent dk odak',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: DesignTokens.green500,
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    Widget focusRemainChip() {
+      if (task.status != 'planned' ||
+          task.durationMinutes == null ||
+          task.durationMinutes! <= 0) {
+        return const SizedBox.shrink();
+      }
+      return Selector<TaskFocusTimerController, int?>(
+        selector: (_, c) {
+          final goalSec = task.durationMinutes! * 60;
+          final rem = c.budgetRemainingSeconds(
+            taskId: task.id,
+            goalTotalSeconds: goalSec,
+          );
+          if (rem >= goalSec) return null;
+          final mins = (rem + 59) ~/ 60;
+          return mins > 0 ? mins : null;
+        },
+        builder: (_, minsLeft, _) {
+          if (minsLeft == null) return const SizedBox.shrink();
+          return Container(
+            key: Key('task_focus_remaining_${task.id}'),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0x4D1E3A8A),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              '$minsLeft dk kaldı',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: DesignTokens.blue400,
+              ),
+            ),
+          );
+        },
+      );
+    }
+
     Widget titleAndMetaColumn() {
       final column = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -174,6 +283,17 @@ class TaskCard extends StatelessWidget {
             children: [
               timeChip(),
               durationRow(),
+              focusSpentChip(),
+              focusRemainChip(),
+              if (_plannedDateOutsideWeek)
+                Text(
+                  'Tarih bu hafta dışında (${task.plannedDate})',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontSize: 10,
+                    color: DesignTokens.amber500,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
             ],
           ),
         ],
@@ -217,6 +337,52 @@ class TaskCard extends StatelessWidget {
                   ],
                 ),
         ),
+        if (onQuickMove != null)
+          Positioned(
+            top: 4,
+            right: onDelete != null ? 32 : 6,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                key: Key('task_card_move_${task.id}'),
+                onTap: onQuickMove,
+                borderRadius: BorderRadius.circular(6),
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.swap_horiz,
+                    size: 18,
+                    color: DesignTokens.slate500,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        if (planned && onMarkSkipped != null)
+          Positioned(
+            top: 4,
+            right: onDelete != null
+                ? (onQuickMove != null ? 58 : 32)
+                : (onQuickMove != null ? 32 : 6),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                key: Key('task_card_skip_${task.id}'),
+                onTap: () async {
+                  await onMarkSkipped!();
+                },
+                borderRadius: BorderRadius.circular(6),
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.skip_next,
+                    size: 18,
+                    color: DesignTokens.amber500,
+                  ),
+                ),
+              ),
+            ),
+          ),
         if (onDelete != null)
           Positioned(
             bottom: 4,

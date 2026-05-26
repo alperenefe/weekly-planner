@@ -59,7 +59,7 @@ class PlannerTopBar extends StatelessWidget implements PreferredSizeWidget {
       title: Text(title),
       leading: IconButton(
         key: const Key('top_bar_calendar'),
-        tooltip: 'Haftalık Plan',
+        tooltip: 'Hafta seç',
         onPressed: onCalendarTap,
         icon: const AppBrandMark(slot: 32, borderRadius: 8),
       ),

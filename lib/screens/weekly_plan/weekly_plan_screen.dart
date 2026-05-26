@@ -21,13 +21,16 @@ import '../../widgets/add_task_sheet.dart';
 import '../../widgets/board_column.dart';
 import '../../widgets/edit_task_sheet.dart';
 import '../../widgets/plan_shift_sheet.dart';
+import '../../widgets/planner_dialogs.dart';
 import '../../widgets/planner_top_bar.dart';
+import '../../widgets/quick_move_sheet.dart';
 import '../../widgets/week_navigation_bar.dart';
 import 'plan_board_search_filter.dart';
 import 'weekly_plan_board_scroll.dart';
 import 'weekly_plan_snapshot_loader.dart';
 import 'weekly_plan_task_column.dart';
 import 'weekly_plan_today_line.dart';
+import 'weekly_plan_today_pill.dart';
 
 class WeeklyPlanScreen extends StatefulWidget {
   const WeeklyPlanScreen({super.key});
@@ -52,6 +55,7 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
   final List<ScrollController> _orphanBoardScrollControllers = [];
   Timer? _boardScrollDisposeTimer;
   PlanDataRevision? _planRevision;
+  bool _applyTemplateInFlight = false;
   bool _suppressPlanRevisionListener = false;
 
   List<Task> _poolTasksFiltered(PlannerFeatureFlags flags) {
@@ -204,9 +208,8 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
           ),
           child: AddTaskSheet(
             onSubmit: (title, duration, notes, dayIndices, startMinutes,
-                accentArgb) async {
+                accentArgb, reminderEnabled, reminderMinutes) async {
               final repo = context.read<TaskRepository>();
-              final messenger = ScaffoldMessenger.of(context);
               for (final dayIndex in dayIndices) {
                 final plannedIso =
                     plannedDateForChipIndex(_weekStart, dayIndex);
@@ -230,6 +233,10 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                     originalPlannedDate: plannedIso == null
                         ? const Value.absent()
                         : Value(plannedIso),
+                    reminderEnabled: Value(reminderEnabled ? 1 : 0),
+                    reminderMinutes: reminderEnabled && reminderMinutes != null
+                        ? Value(reminderMinutes)
+                        : const Value.absent(),
                     createdAt: now,
                     updatedAt: now,
                   ),
@@ -237,14 +244,11 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
               }
               if (!sheetContext.mounted) return;
               Navigator.of(sheetContext).pop();
-              messenger.showSnackBar(
-                SnackBar(
-                  content: Text(
-                    dayIndices.length == 1
-                        ? 'Etkinlik eklendi'
-                        : '${dayIndices.length} etkinlik eklendi',
-                  ),
-                ),
+              showPlannerSnackBar(
+                sheetContext,
+                dayIndices.length == 1
+                    ? 'Etkinlik eklendi'
+                    : '${dayIndices.length} etkinlik eklendi',
               );
               if (!context.mounted) return;
               await _loadTasks();
@@ -258,14 +262,13 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
   Future<void> _dropTaskOnColumn(Task task, String? dropPlannedIso) async {
     if (task.plannedDate == dropPlannedIso) return;
     final repo = context.read<TaskRepository>();
-    final messenger = ScaffoldMessenger.of(context);
     final out = await repo.moveTask(task.id, dropPlannedIso);
     if (!mounted) return;
     if (out.didChange) {
       final text = out.movedCountAfter >= 3
           ? 'Etkinlik taşındı — sık taşınıyor (${out.movedCountAfter})'
           : 'Etkinlik taşındı';
-      messenger.showSnackBar(SnackBar(content: Text(text)));
+      showPlannerSnackBar(context, text);
     }
     await _loadTasks();
   }
@@ -289,7 +292,6 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                     ),
             onApply: (plannedIso, anchorMinutes, shiftMinutes) async {
               final repo = context.read<TaskRepository>();
-              final messenger = ScaffoldMessenger.of(context);
               final n = await repo.shiftPlannedDayTasksAfterAnchor(
                 weekStart: _weekStart,
                 plannedDateIso: plannedIso,
@@ -299,14 +301,11 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
               if (!sheetContext.mounted) return;
               Navigator.of(sheetContext).pop();
               if (!context.mounted) return;
-              messenger.showSnackBar(
-                SnackBar(
-                  content: Text(
-                    n == 0
-                        ? 'Kaydırılacak etkinlik yok'
-                        : '$n etkinlik kaydırıldı',
-                  ),
-                ),
+              showPlannerSnackBar(
+                sheetContext,
+                n == 0
+                    ? 'Kaydırılacak etkinlik yok'
+                    : '$n etkinlik kaydırıldı',
               );
               if (mounted) await _loadTasks();
             },
@@ -321,41 +320,19 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
     required BuildContext dialogAnchor,
     void Function()? afterRepoDelete,
   }) async {
-    final ok = await showDialog<bool>(
-      context: dialogAnchor,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Etkinliği sil'),
-        content: Text('“${task.title}” silinecek. Bu işlem geri alınamaz.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(
-              'İptal',
-              style: TextStyle(color: DesignTokens.blue400),
-            ),
-          ),
-          FilledButton(
-            key: const Key('confirm_task_delete_dialog'),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFB91C1C),
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Sil'),
-          ),
-        ],
-      ),
+    final ok = await PlannerDialogs.confirmDelete(
+      dialogAnchor,
+      title: 'Etkinliği sil',
+      message: '“${task.title}” silinecek. Bu işlem geri alınamaz.',
+      confirmKey: const Key('confirm_task_delete_dialog'),
     );
     if (ok != true || !mounted) return;
     final repo = context.read<TaskRepository>();
-    final messenger = ScaffoldMessenger.of(context);
     await repo.deleteTask(task.id);
     if (!mounted) return;
     afterRepoDelete?.call();
     if (!mounted) return;
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Etkinlik silindi')),
-    );
+    showPlannerSnackBar(context, 'Etkinlik silindi');
     await _loadTasks();
   }
 
@@ -373,7 +350,8 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
             initialTitle: task.title,
             initialDurationMinutes: task.durationMinutes,
             initialNotes: task.notes,
-            initialDayIndex: chipIndexForPlannedDate(_weekStart, task.plannedDate),
+            initialDayIndex:
+                dayChipIndexForUi(_weekStart, task.plannedDate),
             initialStartMinutes: task.startMinutes,
             initialAccentColor: task.accentColor,
             taskEntity: task,
@@ -384,9 +362,9 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                 : null,
             onSubmit:
                 (title, durationMinutes, notes, int dayIndex, int? startMinutes,
-                    int? accentColorArgb) async {
+                    int? accentColorArgb, bool reminderEnabled,
+                    int? reminderMinutes) async {
               final repo = context.read<TaskRepository>();
-              final messenger = ScaffoldMessenger.of(context);
               final newPlanned = plannedDateForChipIndex(_weekStart, dayIndex);
               MoveTaskOutcome? moveOut;
               if (task.plannedDate != newPlanned) {
@@ -402,6 +380,10 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                   startMinutes: Value(startMinutes),
                   notes: Value(notes),
                   accentColor: Value(accentColorArgb),
+                  reminderEnabled: reminderEnabled ? 1 : 0,
+                  reminderMinutes: reminderEnabled && reminderMinutes != null
+                      ? Value(reminderMinutes)
+                      : const Value(null),
                   updatedAt: now,
                 ),
               );
@@ -414,7 +396,7 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                 line =
                     'Güncellendi — sık taşınıyor (${moveOut.movedCountAfter})';
               }
-              messenger.showSnackBar(SnackBar(content: Text(line)));
+              showPlannerSnackBar(sheetContext, line);
               if (!context.mounted) return;
               await _loadTasks();
             },
@@ -456,48 +438,101 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
     if (mounted) await _loadTasks();
   }
 
-  Future<void> _onCopyLastWeek() async {
-    final confirmed = await showDialog<bool>(
+  Future<void> _onMarkSkipped(Task t) async {
+    final repo = context.read<TaskRepository>();
+    await repo.markSkipped(t.id);
+    if (mounted) {
+      context.read<PlanDataRevision>().bump();
+      await _loadTasks();
+    }
+  }
+
+  Future<void> _onUnmarkSkipped(Task t) async {
+    final repo = context.read<TaskRepository>();
+    await repo.unmarkSkipped(t.id);
+    if (mounted) {
+      context.read<PlanDataRevision>().bump();
+      await _loadTasks();
+    }
+  }
+
+  Future<void> _onQuickMove(Task t) async {
+    await showQuickMoveSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Geçen haftayı kopyala'),
-        content: const Text(
-          'Geçen haftanın etkinlikleri kopyalanacak. Devam?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('İptal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Devam'),
-          ),
-        ],
+      task: t,
+      onMoveToDayIndex: (dayIndex) async {
+        final iso = plannedDateForChipIndex(_weekStart, dayIndex);
+        await _dropTaskOnColumn(t, iso);
+      },
+    );
+  }
+
+  void _scrollToBoardColumn(int columnIndex) {
+    if (!_boardScrollController.hasClients) return;
+    final step = WeeklyPlanScreen.columnWidth + DesignTokens.space3;
+    final target = (columnIndex * step).clamp(
+      0.0,
+      _boardScrollController.position.maxScrollExtent,
+    );
+    unawaited(
+      _boardScrollController.animateTo(
+        target,
+        duration: DesignTokens.motionMedium,
+        curve: Curves.easeOutCubic,
       ),
+    );
+  }
+
+  (int done, int total) _columnProgress(List<Task> tasks) {
+    var done = 0;
+    for (final t in tasks) {
+      if (t.status == 'done') done++;
+    }
+    return (done, tasks.length);
+  }
+
+  Future<void> _pickWeekFromCalendar() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: parseIsoDate(_weekStart),
+      firstDate: DateTime(2020, 1, 1),
+      lastDate: DateTime(2035, 12, 31),
+      helpText: 'Hafta seçin',
+      cancelText: 'İptal',
+      confirmText: 'Tamam',
+    );
+    if (picked == null || !mounted) return;
+    final monday = mondayIsoContaining(picked);
+    if (monday == _weekStart) return;
+    await _loadTasksFromRepository(
+      applyWeekStart: monday,
+      notifyRevision: true,
+    );
+  }
+
+  Future<void> _onCopyLastWeek() async {
+    final confirmed = await PlannerDialogs.confirm(
+      context,
+      title: 'Geçen haftayı kopyala',
+      message: 'Geçen haftanın etkinlikleri kopyalanacak. Devam?',
     );
     if (confirmed != true || !mounted) return;
     final repo = context.read<TaskRepository>();
-    final messenger = ScaffoldMessenger.of(context);
     await repo.copyLastWeekTasks(_weekStart);
     if (!mounted) return;
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Kopyalandı')),
-    );
+    showPlannerSnackBar(context, 'Kopyalandı');
     await _loadTasks();
   }
 
   Future<void> _openApplyTemplateSheet() async {
+    if (_applyTemplateInFlight) return;
     final repo = context.read<WeekTemplateRepository>();
     final templates = await repo.getTemplates();
     if (!mounted) return;
     if (templates.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Henüz şablon yok. Ayarlar > Şablonlar\'dan ekle.',
-          ),
-        ),
+      showPlannerSnackBar(
+        context,
+        'Henüz kayıtlı plan yok. Ayarlar → Kayıtlı hafta planlarından ekleyebilirsin.',
       );
       return;
     }
@@ -506,14 +541,45 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
       useSafeArea: true,
       builder: (sheetContext) {
         return _ApplyWeekTemplateSheet(
-          parentContext: context,
-          sheetContext: sheetContext,
-          weekStart: _weekStart,
           templates: templates,
-          onApplied: _loadTasks,
+          onPick: _applyWeekTemplate,
         );
       },
     );
+  }
+
+  Future<void> _applyWeekTemplate(WeekTemplate t) async {
+    if (_applyTemplateInFlight || !mounted) return;
+    _applyTemplateInFlight = true;
+    try {
+      final weekStart = _weekStart;
+      final existingCount =
+          (await context.read<TaskRepository>().getTasksForWeek(weekStart))
+              .length;
+      final duplicateHint = existingCount > 0
+          ? '\n\nBu haftada zaten $existingCount görev var; şablon tekrar uygulanırsa görevler çoğalır.'
+          : '';
+      if (!mounted) return;
+      final ok = await PlannerDialogs.confirm(
+        context,
+        title: 'Kayıtlı plan uygula',
+        message:
+            '${t.taskCount} görev bu haftaya eklenecek.$duplicateHint\n\nDevam?',
+      );
+      if (ok != true || !mounted) return;
+      final n = await context.read<WeekTemplateService>().applyTemplate(
+            t.id,
+            weekStart,
+          );
+      if (!mounted) return;
+      await _loadTasks();
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.clearSnackBars();
+      showPlannerSnackBar(context, '$n görev eklendi');
+    } finally {
+      _applyTemplateInFlight = false;
+    }
   }
 
   @override
@@ -541,7 +607,7 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
       trailingParts.add(
         IconButton(
           key: const Key('weekly_plan_apply_template'),
-          tooltip: 'Şablon uygula',
+          tooltip: 'Kayıtlı hafta planını uygula',
           onPressed: _openApplyTemplateSheet,
           icon: const Icon(Icons.dashboard_customize_outlined),
           color: DesignTokens.blue400,
@@ -564,16 +630,16 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
       key: const Key('weekly_plan_screen'),
       backgroundColor: DesignTokens.slate950,
       appBar: PlannerTopBar(
-        onCalendarTap: () {},
+        onCalendarTap: () => unawaited(_pickWeekFromCalendar()),
         moreMenuBuilder: (_) => [
           if (featureFlags.scheduledBreaksEnabled)
             const PopupMenuItem<String>(
               value: 'plan_shift',
-              child: Text('Planı kaydır'),
+              child: Text('Günlük planı kaydır'),
             ),
           const PopupMenuItem<String>(
             value: 'refresh_week',
-            child: Text('Haftayı yenile'),
+            child: Text('Listeyi yenile'),
           ),
         ],
         onMoreMenuSelected: (value) {
@@ -694,21 +760,30 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                   ),
                 ),
               ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                child: Text(
-                  weeklyPlanTodaySummaryLine(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  WeeklyPlanTodayPillStrip(
                     weekStart: _weekStart,
-                    dayTasks: _dayTasks,
+                    onDaySelected: _scrollToBoardColumn,
                   ),
-                  key: const Key('weekly_plan_day_hint'),
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: DesignTokens.slate400,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Text(
+                      weeklyPlanTodaySummaryLine(
+                        weekStart: _weekStart,
+                        dayTasks: _dayTasks,
                       ),
-                ),
+                      key: const Key('weekly_plan_day_hint'),
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: DesignTokens.slate400,
+                          ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -742,41 +817,40 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                         children: [
                           for (var i = 0; i < kPlanDayLabels.length; i++) ...[
                             if (i > 0) SizedBox(width: DesignTokens.space3),
-                            BoardColumn(
-                              title: kPlanDayLabels[i],
-                              subtitle: null,
-                              badgeCount: i == 0
-                                  ? _poolTasksFiltered(featureFlags).length
-                                  : _dayTasksFiltered(featureFlags)[i - 1].length,
-                              width: WeeklyPlanScreen.columnWidth,
-                              titleHighlightToday: _isTodayColumnTitle(i),
-                              subdued: i > 0 &&
-                                  _dayTasksFiltered(featureFlags)[i - 1].isEmpty,
-                              child: i == 0
-                                  ? WeeklyPlanTaskColumn(
-                                      tasks: _poolTasksFiltered(featureFlags),
-                                      columnKeySuffix: kPlanDayLabels[i],
-                                      dropPlannedIso: null,
-                                      dragFeedbackCardWidth:
-                                          _dragFeedbackCardWidth,
-                                      onEditTask: _openEditTaskSheet,
-                                      onMarkDone: _onMarkDone,
-                                      onUnmarkDone: _onUnmarkDone,
-                                      onDropFromDrag: _dropTaskOnColumn,
-                                      onDragUpdate: _autoScrollBoardDuringDrag,
-                                    )
-                                  : WeeklyPlanTaskColumn(
-                                      tasks: _dayTasksFiltered(featureFlags)[i - 1],
-                                      columnKeySuffix: kPlanDayLabels[i],
-                                      dropPlannedIso: dayIsos[i - 1],
-                                      dragFeedbackCardWidth:
-                                          _dragFeedbackCardWidth,
-                                      onEditTask: _openEditTaskSheet,
-                                      onMarkDone: _onMarkDone,
-                                      onUnmarkDone: _onUnmarkDone,
-                                      onDropFromDrag: _dropTaskOnColumn,
-                                      onDragUpdate: _autoScrollBoardDuringDrag,
-                                    ),
+                            Builder(
+                              builder: (context) {
+                                final colTasks = i == 0
+                                    ? _poolTasksFiltered(featureFlags)
+                                    : _dayTasksFiltered(featureFlags)[i - 1];
+                                final progress = _columnProgress(colTasks);
+                                return BoardColumn(
+                                  title: kPlanDayLabels[i],
+                                  subtitle: null,
+                                  badgeCount: colTasks.length,
+                                  doneCount: progress.$1,
+                                  taskCount: progress.$2,
+                                  width: WeeklyPlanScreen.columnWidth,
+                                  titleHighlightToday: _isTodayColumnTitle(i),
+                                  subdued: i > 0 && colTasks.isEmpty,
+                                  child: WeeklyPlanTaskColumn(
+                                    tasks: colTasks,
+                                    weekMondayIso: _weekStart,
+                                    columnKeySuffix: kPlanDayLabels[i],
+                                    dropPlannedIso:
+                                        i == 0 ? null : dayIsos[i - 1],
+                                    dragFeedbackCardWidth:
+                                        _dragFeedbackCardWidth,
+                                    onEditTask: _openEditTaskSheet,
+                                    onMarkDone: _onMarkDone,
+                                    onUnmarkDone: _onUnmarkDone,
+                                    onMarkSkipped: _onMarkSkipped,
+                                    onUnmarkSkipped: _onUnmarkSkipped,
+                                    onQuickMove: _onQuickMove,
+                                    onDropFromDrag: _dropTaskOnColumn,
+                                    onDragUpdate: _autoScrollBoardDuringDrag,
+                                  ),
+                                );
+                              },
                             ),
                           ],
                           SizedBox(width: DesignTokens.space2),
@@ -796,18 +870,12 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
 
 class _ApplyWeekTemplateSheet extends StatelessWidget {
   const _ApplyWeekTemplateSheet({
-    required this.parentContext,
-    required this.sheetContext,
-    required this.weekStart,
     required this.templates,
-    required this.onApplied,
+    required this.onPick,
   });
 
-  final BuildContext parentContext;
-  final BuildContext sheetContext;
-  final String weekStart;
   final List<WeekTemplate> templates;
-  final Future<void> Function() onApplied;
+  final Future<void> Function(WeekTemplate template) onPick;
 
   @override
   Widget build(BuildContext context) {
@@ -818,7 +886,7 @@ class _ApplyWeekTemplateSheet extends StatelessWidget {
         shrinkWrap: true,
         children: [
           Text(
-            'Şablon Uygula',
+            'Kayıtlı plan uygula',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
@@ -827,40 +895,13 @@ class _ApplyWeekTemplateSheet extends StatelessWidget {
               contentPadding: EdgeInsets.zero,
               title: Text(t.name),
               subtitle: Text('${t.taskCount} görev'),
-              onTap: () => _onPick(t),
+              onTap: () {
+                Navigator.of(context).pop();
+                unawaited(onPick(t));
+              },
             ),
         ],
       ),
-    );
-  }
-
-  Future<void> _onPick(WeekTemplate t) async {
-    Navigator.of(sheetContext).pop();
-    final ok = await showDialog<bool>(
-      context: parentContext,
-      builder: (dctx) => AlertDialog(
-        title: const Text('Şablon uygula'),
-        content: Text('${t.taskCount} görev bu haftaya eklenecek. Devam?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dctx, false),
-            child: const Text('İptal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dctx, true),
-            child: const Text('Devam'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !parentContext.mounted) return;
-    final svc = parentContext.read<WeekTemplateService>();
-    final n = await svc.applyTemplate(t.id, weekStart);
-    if (!parentContext.mounted) return;
-    await onApplied();
-    if (!parentContext.mounted) return;
-    ScaffoldMessenger.of(parentContext).showSnackBar(
-      SnackBar(content: Text('$n görev eklendi')),
     );
   }
 }

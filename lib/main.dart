@@ -10,12 +10,16 @@ import 'data/repositories/monthly_goal_repository.dart';
 import 'data/repositories/recurring_template_repository.dart';
 import 'data/repositories/task_repository.dart';
 import 'data/repositories/week_template_repository.dart';
+import 'dart:async';
+
 import 'plan_data_revision.dart';
 import 'services/export_service.dart';
 import 'services/monthly_goal_service.dart';
 import 'services/summary_service.dart';
 import 'services/planner_feature_flags_store.dart';
 import 'services/planner_local_notifications.dart';
+import 'services/reminder_scheduler_service.dart';
+import 'services/reminder_settings_store.dart';
 import 'services/task_focus_timer_controller.dart';
 import 'services/week_service.dart';
 import 'services/week_template_service.dart';
@@ -30,21 +34,35 @@ Future<void> main() async {
   final templateRepo = RecurringTemplateRepository(db);
   final localNotifications = PlannerLocalNotifications();
   await localNotifications.init();
+  final reminderSettings = ReminderSettingsStore();
+  await reminderSettings.ensureLoaded();
+  final featureFlags = PlannerFeatureFlagsStore();
+  final planRevision = PlanDataRevision();
   final weekService = WeekService(
     taskRepository: taskRepo,
     templateRepository: templateRepo,
+    featureFlagsStore: featureFlags,
   );
   final summaryService = SummaryService(taskRepo);
   final exportService = ExportService(taskRepo, summaryService);
   final monthlyGoalRepo = MonthlyGoalRepository(db);
   final monthlyGoalService = MonthlyGoalService(taskRepo);
   final weekTemplateRepo = WeekTemplateRepository(db);
-  final featureFlags = PlannerFeatureFlagsStore();
+  final reminderScheduler = ReminderSchedulerService(
+    notifications: localNotifications,
+    settings: reminderSettings,
+    taskRepo: taskRepo,
+    goalRepo: monthlyGoalRepo,
+    planRevision: planRevision,
+  );
+  unawaited(reminderScheduler.syncAll());
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => PlanDataRevision()),
+        ChangeNotifierProvider.value(value: planRevision),
         ChangeNotifierProvider.value(value: featureFlags),
+        ChangeNotifierProvider.value(value: reminderSettings),
+        Provider.value(value: reminderScheduler),
         Provider.value(value: db),
         Provider.value(value: taskRepo),
         Provider.value(value: templateRepo),

@@ -19,6 +19,12 @@ class Tasks extends Table {
 
   IntColumn get startMinutes => integer().named('start_minutes').nullable()();
 
+  IntColumn get reminderEnabled =>
+      integer().named('reminder_enabled').withDefault(const Constant(0))();
+
+  IntColumn get reminderMinutes =>
+      integer().named('reminder_minutes').nullable()();
+
   TextColumn get notes => text().nullable()();
 
   TextColumn get status => text().withDefault(const Constant('planned'))();
@@ -107,7 +113,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -121,7 +127,10 @@ class AppDatabase extends _$AppDatabase {
             'order_index INTEGER NOT NULL, '
             'status TEXT NOT NULL DEFAULT \'active\', '
             'created_at TEXT NOT NULL, '
-            'updated_at TEXT NOT NULL'
+            'updated_at TEXT NOT NULL, '
+            'reminder_enabled INTEGER NOT NULL DEFAULT 0, '
+            'reminder_weekday INTEGER, '
+            'reminder_minutes INTEGER'
             ')',
           );
           await m.database.customStatement(
@@ -142,6 +151,7 @@ class AppDatabase extends _$AppDatabase {
             'order_index INTEGER NOT NULL'
             ')',
           );
+          await _createTaskIndexes(m);
         },
         onUpgrade: (Migrator m, int from, int to) async {
           if (from < 2) {
@@ -189,8 +199,34 @@ class AppDatabase extends _$AppDatabase {
           if (from < 7) {
             await m.addColumn(tasks, tasks.accentColor);
           }
+          if (from < 8) {
+            await _createTaskIndexes(m);
+          }
+          if (from < 9) {
+            await m.addColumn(tasks, tasks.reminderEnabled);
+            await m.addColumn(tasks, tasks.reminderMinutes);
+            await m.database.customStatement(
+              'ALTER TABLE monthly_goals ADD COLUMN reminder_enabled '
+              'INTEGER NOT NULL DEFAULT 0',
+            );
+            await m.database.customStatement(
+              'ALTER TABLE monthly_goals ADD COLUMN reminder_weekday INTEGER',
+            );
+            await m.database.customStatement(
+              'ALTER TABLE monthly_goals ADD COLUMN reminder_minutes INTEGER',
+            );
+          }
         },
       );
+
+  static Future<void> _createTaskIndexes(Migrator m) async {
+    await m.database.customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_tasks_week_start ON tasks(week_start)',
+    );
+    await m.database.customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_tasks_week_planned ON tasks(week_start, planned_date)',
+    );
+  }
 }
 
 LazyDatabase _openLazyExecutor() {

@@ -139,7 +139,7 @@ class _PlanShiftSheetState extends State<PlanShiftSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Planı kaydır',
+                'Günlük planı kaydır',
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   fontSize: 26,

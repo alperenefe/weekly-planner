@@ -52,7 +52,7 @@ class WeekNavigationBar extends StatelessWidget {
                   style: textStyle,
                 ),
               ),
-              if (trailingAction != null) trailingAction!,
+              ?trailingAction,
               IconButton(
                 key: const Key('week_nav_next'),
                 onPressed: onNext,

@@ -7,6 +7,7 @@ import '../data/repositories/task_repository.dart';
 import '../plan_data_revision.dart';
 import '../services/task_focus_timer_controller.dart';
 import '../theme/design_tokens.dart';
+import 'planner_dialogs.dart';
 
 String _formatMmSs(Duration d) {
   final t = d.inSeconds.clamp(0, 86400);
@@ -83,32 +84,34 @@ class _TaskFocusTimerLayerState extends State<TaskFocusTimerLayer> {
     }
     _alarmDialogOpen = true;
     final title = c.activeTitle.isEmpty ? 'Etkinlik' : c.activeTitle;
-    await showDialog<void>(
-      context: context,
+    await PlannerDialogs.show<void>(
+      context,
       barrierDismissible: false,
       useRootNavigator: true,
       builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Süre doldu'),
-          content: Text(title),
+        return PlannerDialogs.build(
+          title: PlannerDialogs.titleText('Süre doldu'),
+          content: PlannerDialogs.bodyText(title),
           actions: [
-            TextButton(
+            PlannerDialogs.cancelAction(
+              ctx,
+              label: 'Tamamlandı',
               onPressed: () async {
                 await _markFocusTaskDone(c);
                 if (ctx.mounted) {
                   Navigator.of(ctx).pop();
                 }
               },
-              child: const Text('Tamamlandı'),
             ),
-            FilledButton(
+            PlannerDialogs.confirmAction(
+              ctx,
+              label: 'Tamam',
               onPressed: () async {
                 await c.acknowledgeAlarm();
                 if (ctx.mounted) {
                   Navigator.of(ctx).pop();
                 }
               },
-              child: const Text('Tamam'),
             ),
           ],
         );

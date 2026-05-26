@@ -33,12 +33,25 @@ String? plannedDateForChipIndex(String weekMondayIso, int chipIndex) {
   return addDaysIso(weekMondayIso, chipIndex - 1);
 }
 
+/// `planned_date` bu haftanın Pazartesi–Pazar aralığında mı?
+bool isPlannedDateInWeek(String weekMondayIso, String? plannedDate) {
+  if (plannedDate == null || plannedDate.isEmpty) return false;
+  return weekdayIsosFromMonday(weekMondayIso).contains(plannedDate);
+}
+
+/// 0 = havuz, 1–7 = gün; **-1** = planlı tarih var ama bu hafta dışında.
 int chipIndexForPlannedDate(String weekMondayIso, String? plannedDate) {
   if (plannedDate == null) return 0;
   final isos = weekdayIsosFromMonday(weekMondayIso);
   final i = isos.indexOf(plannedDate);
-  if (i < 0) return 0;
+  if (i < 0) return -1;
   return i + 1;
+}
+
+/// Düzenleme sheet chip’leri: hafta dışı tarih havuz (0) olarak gösterilir.
+int dayChipIndexForUi(String weekMondayIso, String? plannedDate) {
+  final idx = chipIndexForPlannedDate(weekMondayIso, plannedDate);
+  return idx < 0 ? 0 : idx;
 }
 
 List<String> weekdayIsosFromMonday(String mondayIso) {

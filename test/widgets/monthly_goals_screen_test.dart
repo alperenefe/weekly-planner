@@ -33,9 +33,6 @@ void main() {
     await tester.tap(find.byKey(const Key('nav_goals')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('monthly_goals_fab')));
-    await tester.pumpAndSettle();
-
     await tester.enterText(
       find.byKey(const Key('monthly_goals_new_title')),
       'İlk hedef',
@@ -64,8 +61,6 @@ void main() {
     await tester.tap(find.byKey(const Key('nav_goals')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('monthly_goals_fab')));
-    await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('monthly_goals_new_title')),
       'ToggleMe',
@@ -97,8 +92,6 @@ void main() {
     await tester.tap(find.byKey(const Key('nav_goals')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('monthly_goals_fab')));
-    await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('monthly_goals_new_title')),
       'SheetGoal',

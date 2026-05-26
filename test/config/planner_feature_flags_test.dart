@@ -10,6 +10,7 @@ void main() {
       historyExportTabEnabled: true,
       planBoardSearchEnabled: false,
       monthlyGoalsEnabled: false,
+      recurringTemplatesEnabled: false,
       weekTemplatesEnabled: false,
     );
     final decoded = PlannerFeatureFlags.fromJson(original.toJson());
@@ -19,6 +20,7 @@ void main() {
     expect(decoded.historyExportTabEnabled, true);
     expect(decoded.planBoardSearchEnabled, false);
     expect(decoded.monthlyGoalsEnabled, false);
+    expect(decoded.recurringTemplatesEnabled, false);
     expect(decoded.weekTemplatesEnabled, false);
   });
 
@@ -31,6 +33,7 @@ void main() {
     expect(decoded.historyExportTabEnabled, true);
     expect(decoded.planBoardSearchEnabled, true);
     expect(decoded.monthlyGoalsEnabled, true);
+    expect(decoded.recurringTemplatesEnabled, true);
     expect(decoded.weekTemplatesEnabled, true);
   });
 

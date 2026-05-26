@@ -23,6 +23,7 @@ void main() {
       recurrenceTemplateId: null,
       createdAt: stamp,
       updatedAt: stamp,
+      reminderEnabled: 0,
       completedAt: null,
     );
   }

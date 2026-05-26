@@ -1,4 +1,5 @@
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:weekly_planner/app.dart';
 import 'package:weekly_planner/config/planner_feature_flags.dart';
 import 'package:weekly_planner/data/db/app_database.dart';
@@ -10,6 +11,9 @@ import 'package:weekly_planner/plan_data_revision.dart';
 import 'package:weekly_planner/services/export_service.dart';
 import 'package:weekly_planner/services/monthly_goal_service.dart';
 import 'package:weekly_planner/services/planner_feature_flags_store.dart';
+import 'package:weekly_planner/services/planner_local_notifications.dart';
+import 'package:weekly_planner/services/reminder_scheduler_service.dart';
+import 'package:weekly_planner/services/reminder_settings_store.dart';
 import 'package:weekly_planner/services/summary_service.dart';
 import 'package:weekly_planner/services/task_focus_timer_controller.dart';
 import 'package:weekly_planner/services/week_service.dart';
@@ -19,23 +23,39 @@ MultiProvider plannerAppWithDb(
   AppDatabase db, {
   PlannerFeatureFlags featureFlags = const PlannerFeatureFlags(),
 }) {
+  SharedPreferences.setMockInitialValues({
+    'planner_onboarding_completed_v1': true,
+  });
   final taskRepo = TaskRepository(db);
   final templateRepo = RecurringTemplateRepository(db);
+  final flagsStore = PlannerFeatureFlagsStore(initial: featureFlags);
   final weekService = WeekService(
     taskRepository: taskRepo,
     templateRepository: templateRepo,
+    featureFlagsStore: flagsStore,
   );
   final summaryService = SummaryService(taskRepo);
   final exportService = ExportService(taskRepo, summaryService);
   final monthlyGoalRepo = MonthlyGoalRepository(db);
   final monthlyGoalService = MonthlyGoalService(taskRepo);
   final weekTemplateRepo = WeekTemplateRepository(db);
+  final planRevision = PlanDataRevision();
+  final reminderSettings = ReminderSettingsStore();
+  final localNotifications = PlannerLocalNotifications();
+  final reminderScheduler = ReminderSchedulerService(
+    notifications: localNotifications,
+    settings: reminderSettings,
+    taskRepo: taskRepo,
+    goalRepo: monthlyGoalRepo,
+    planRevision: planRevision,
+  );
   return MultiProvider(
     providers: [
-      ChangeNotifierProvider(create: (_) => PlanDataRevision()),
-      ChangeNotifierProvider(
-        create: (_) => PlannerFeatureFlagsStore(initial: featureFlags),
-      ),
+      ChangeNotifierProvider.value(value: planRevision),
+      ChangeNotifierProvider.value(value: flagsStore),
+      ChangeNotifierProvider.value(value: reminderSettings),
+      Provider.value(value: reminderScheduler),
+      Provider.value(value: localNotifications),
       Provider.value(value: db),
       Provider.value(value: taskRepo),
       Provider.value(value: templateRepo),

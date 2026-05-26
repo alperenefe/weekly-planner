@@ -12,23 +12,31 @@ class WeeklyPlanTaskColumn extends StatelessWidget {
   const WeeklyPlanTaskColumn({
     super.key,
     required this.tasks,
+    this.weekMondayIso,
     required this.columnKeySuffix,
     required this.dropPlannedIso,
     required this.dragFeedbackCardWidth,
     required this.onEditTask,
     required this.onMarkDone,
     required this.onUnmarkDone,
+    this.onMarkSkipped,
+    this.onUnmarkSkipped,
+    this.onQuickMove,
     required this.onDropFromDrag,
     required this.onDragUpdate,
   });
 
   final List<Task> tasks;
+  final String? weekMondayIso;
   final String columnKeySuffix;
   final String? dropPlannedIso;
   final double dragFeedbackCardWidth;
   final Future<void> Function(Task task) onEditTask;
   final Future<void> Function(Task task) onMarkDone;
   final Future<void> Function(Task task) onUnmarkDone;
+  final Future<void> Function(Task task)? onMarkSkipped;
+  final Future<void> Function(Task task)? onUnmarkSkipped;
+  final Future<void> Function(Task task)? onQuickMove;
   final Future<void> Function(Task task, String? dropIso) onDropFromDrag;
   final void Function(DragUpdateDetails details) onDragUpdate;
 
@@ -55,6 +63,7 @@ class WeeklyPlanTaskColumn extends StatelessWidget {
                 return TaskCard(
                   key: omitKey ? null : Key('task_card_${t.id}'),
                   task: t,
+                  weekMondayIso: weekMondayIso,
                   onBodyTap: () {
                     unawaited(onEditTask(t));
                   },
@@ -64,6 +73,21 @@ class WeeklyPlanTaskColumn extends StatelessWidget {
                   onUnmarkDone: () async {
                     await onUnmarkDone(t);
                   },
+                  onMarkSkipped: onMarkSkipped == null
+                      ? null
+                      : () async {
+                          await onMarkSkipped!(t);
+                        },
+                  onUnmarkSkipped: onUnmarkSkipped == null
+                      ? null
+                      : () async {
+                          await onUnmarkSkipped!(t);
+                        },
+                  onQuickMove: onQuickMove == null
+                      ? null
+                      : () {
+                          unawaited(onQuickMove!(t));
+                        },
                   dragSlotWrapper: withDragSlot
                       ? (Widget dragBody) {
                           return LongPressDraggable<Task>(

@@ -1,23 +1,35 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:weekly_planner/config/planner_feature_flags.dart';
 import 'package:weekly_planner/data/db/app_database.dart';
 import 'package:weekly_planner/data/repositories/recurring_template_repository.dart';
 import 'package:weekly_planner/data/repositories/task_repository.dart';
+import 'package:weekly_planner/services/planner_feature_flags_store.dart';
 import 'package:weekly_planner/services/week_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   late AppDatabase db;
   late TaskRepository tasks;
   late RecurringTemplateRepository templates;
+  late PlannerFeatureFlagsStore flagsStore;
   late WeekService week;
 
   setUp(() {
     db = AppDatabase.memory();
     tasks = TaskRepository(db);
     templates = RecurringTemplateRepository(db);
+    flagsStore = PlannerFeatureFlagsStore(initial: const PlannerFeatureFlags());
     week = WeekService(
       taskRepository: tasks,
       templateRepository: templates,
+      featureFlagsStore: flagsStore,
     );
   });
 
@@ -63,5 +75,23 @@ void main() {
     final linked = dayTasks.where((t) => t.recurrenceTemplateId == tid).toList();
     expect(linked.length, 1);
     expect(linked.single.plannedDate, tue);
+  });
+
+  test('ensureWeekTasks skips when recurringTemplatesEnabled is false', () async {
+    const weekStart = '2025-01-06';
+    final now = DateTime.utc(2025, 1, 1, 10).toIso8601String();
+    await templates.insertTemplate(
+      RecurringTemplatesCompanion.insert(
+        title: 'R1',
+        durationMinutes: const Value(15),
+        createdAt: now,
+      ),
+    );
+    await flagsStore.setFlags(
+      const PlannerFeatureFlags(recurringTemplatesEnabled: false),
+    );
+    await week.ensureWeekTasks(weekStart);
+    final weekTasks = await tasks.getTasksForWeek(weekStart);
+    expect(weekTasks, isEmpty);
   });
 }

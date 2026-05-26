@@ -52,6 +52,29 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _reminderEnabledMeta = const VerificationMeta(
+    'reminderEnabled',
+  );
+  @override
+  late final GeneratedColumn<int> reminderEnabled = GeneratedColumn<int>(
+    'reminder_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _reminderMinutesMeta = const VerificationMeta(
+    'reminderMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> reminderMinutes = GeneratedColumn<int>(
+    'reminder_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
@@ -176,6 +199,8 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     title,
     durationMinutes,
     startMinutes,
+    reminderEnabled,
+    reminderMinutes,
     notes,
     status,
     weekStart,
@@ -226,6 +251,24 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         startMinutes.isAcceptableOrUnknown(
           data['start_minutes']!,
           _startMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('reminder_enabled')) {
+      context.handle(
+        _reminderEnabledMeta,
+        reminderEnabled.isAcceptableOrUnknown(
+          data['reminder_enabled']!,
+          _reminderEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('reminder_minutes')) {
+      context.handle(
+        _reminderMinutesMeta,
+        reminderMinutes.isAcceptableOrUnknown(
+          data['reminder_minutes']!,
+          _reminderMinutesMeta,
         ),
       );
     }
@@ -341,6 +384,14 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         DriftSqlType.int,
         data['${effectivePrefix}start_minutes'],
       ),
+      reminderEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reminder_enabled'],
+      )!,
+      reminderMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reminder_minutes'],
+      ),
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
@@ -399,6 +450,8 @@ class Task extends DataClass implements Insertable<Task> {
   final String title;
   final int? durationMinutes;
   final int? startMinutes;
+  final int reminderEnabled;
+  final int? reminderMinutes;
   final String? notes;
   final String status;
   final String weekStart;
@@ -415,6 +468,8 @@ class Task extends DataClass implements Insertable<Task> {
     required this.title,
     this.durationMinutes,
     this.startMinutes,
+    required this.reminderEnabled,
+    this.reminderMinutes,
     this.notes,
     required this.status,
     required this.weekStart,
@@ -437,6 +492,10 @@ class Task extends DataClass implements Insertable<Task> {
     }
     if (!nullToAbsent || startMinutes != null) {
       map['start_minutes'] = Variable<int>(startMinutes);
+    }
+    map['reminder_enabled'] = Variable<int>(reminderEnabled);
+    if (!nullToAbsent || reminderMinutes != null) {
+      map['reminder_minutes'] = Variable<int>(reminderMinutes);
     }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
@@ -474,6 +533,10 @@ class Task extends DataClass implements Insertable<Task> {
       startMinutes: startMinutes == null && nullToAbsent
           ? const Value.absent()
           : Value(startMinutes),
+      reminderEnabled: Value(reminderEnabled),
+      reminderMinutes: reminderMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderMinutes),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
@@ -510,6 +573,8 @@ class Task extends DataClass implements Insertable<Task> {
       title: serializer.fromJson<String>(json['title']),
       durationMinutes: serializer.fromJson<int?>(json['durationMinutes']),
       startMinutes: serializer.fromJson<int?>(json['startMinutes']),
+      reminderEnabled: serializer.fromJson<int>(json['reminderEnabled']),
+      reminderMinutes: serializer.fromJson<int?>(json['reminderMinutes']),
       notes: serializer.fromJson<String?>(json['notes']),
       status: serializer.fromJson<String>(json['status']),
       weekStart: serializer.fromJson<String>(json['weekStart']),
@@ -535,6 +600,8 @@ class Task extends DataClass implements Insertable<Task> {
       'title': serializer.toJson<String>(title),
       'durationMinutes': serializer.toJson<int?>(durationMinutes),
       'startMinutes': serializer.toJson<int?>(startMinutes),
+      'reminderEnabled': serializer.toJson<int>(reminderEnabled),
+      'reminderMinutes': serializer.toJson<int?>(reminderMinutes),
       'notes': serializer.toJson<String?>(notes),
       'status': serializer.toJson<String>(status),
       'weekStart': serializer.toJson<String>(weekStart),
@@ -554,6 +621,8 @@ class Task extends DataClass implements Insertable<Task> {
     String? title,
     Value<int?> durationMinutes = const Value.absent(),
     Value<int?> startMinutes = const Value.absent(),
+    int? reminderEnabled,
+    Value<int?> reminderMinutes = const Value.absent(),
     Value<String?> notes = const Value.absent(),
     String? status,
     String? weekStart,
@@ -571,9 +640,11 @@ class Task extends DataClass implements Insertable<Task> {
     durationMinutes: durationMinutes.present
         ? durationMinutes.value
         : this.durationMinutes,
-    startMinutes: startMinutes.present
-        ? startMinutes.value
-        : this.startMinutes,
+    startMinutes: startMinutes.present ? startMinutes.value : this.startMinutes,
+    reminderEnabled: reminderEnabled ?? this.reminderEnabled,
+    reminderMinutes: reminderMinutes.present
+        ? reminderMinutes.value
+        : this.reminderMinutes,
     notes: notes.present ? notes.value : this.notes,
     status: status ?? this.status,
     weekStart: weekStart ?? this.weekStart,
@@ -600,6 +671,12 @@ class Task extends DataClass implements Insertable<Task> {
       startMinutes: data.startMinutes.present
           ? data.startMinutes.value
           : this.startMinutes,
+      reminderEnabled: data.reminderEnabled.present
+          ? data.reminderEnabled.value
+          : this.reminderEnabled,
+      reminderMinutes: data.reminderMinutes.present
+          ? data.reminderMinutes.value
+          : this.reminderMinutes,
       notes: data.notes.present ? data.notes.value : this.notes,
       status: data.status.present ? data.status.value : this.status,
       weekStart: data.weekStart.present ? data.weekStart.value : this.weekStart,
@@ -633,6 +710,8 @@ class Task extends DataClass implements Insertable<Task> {
           ..write('title: $title, ')
           ..write('durationMinutes: $durationMinutes, ')
           ..write('startMinutes: $startMinutes, ')
+          ..write('reminderEnabled: $reminderEnabled, ')
+          ..write('reminderMinutes: $reminderMinutes, ')
           ..write('notes: $notes, ')
           ..write('status: $status, ')
           ..write('weekStart: $weekStart, ')
@@ -654,6 +733,8 @@ class Task extends DataClass implements Insertable<Task> {
     title,
     durationMinutes,
     startMinutes,
+    reminderEnabled,
+    reminderMinutes,
     notes,
     status,
     weekStart,
@@ -674,6 +755,8 @@ class Task extends DataClass implements Insertable<Task> {
           other.title == this.title &&
           other.durationMinutes == this.durationMinutes &&
           other.startMinutes == this.startMinutes &&
+          other.reminderEnabled == this.reminderEnabled &&
+          other.reminderMinutes == this.reminderMinutes &&
           other.notes == this.notes &&
           other.status == this.status &&
           other.weekStart == this.weekStart &&
@@ -692,6 +775,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
   final Value<String> title;
   final Value<int?> durationMinutes;
   final Value<int?> startMinutes;
+  final Value<int> reminderEnabled;
+  final Value<int?> reminderMinutes;
   final Value<String?> notes;
   final Value<String> status;
   final Value<String> weekStart;
@@ -708,6 +793,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.title = const Value.absent(),
     this.durationMinutes = const Value.absent(),
     this.startMinutes = const Value.absent(),
+    this.reminderEnabled = const Value.absent(),
+    this.reminderMinutes = const Value.absent(),
     this.notes = const Value.absent(),
     this.status = const Value.absent(),
     this.weekStart = const Value.absent(),
@@ -725,6 +812,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     required String title,
     this.durationMinutes = const Value.absent(),
     this.startMinutes = const Value.absent(),
+    this.reminderEnabled = const Value.absent(),
+    this.reminderMinutes = const Value.absent(),
     this.notes = const Value.absent(),
     this.status = const Value.absent(),
     required String weekStart,
@@ -745,6 +834,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Expression<String>? title,
     Expression<int>? durationMinutes,
     Expression<int>? startMinutes,
+    Expression<int>? reminderEnabled,
+    Expression<int>? reminderMinutes,
     Expression<String>? notes,
     Expression<String>? status,
     Expression<String>? weekStart,
@@ -762,6 +853,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
       if (title != null) 'title': title,
       if (durationMinutes != null) 'duration_minutes': durationMinutes,
       if (startMinutes != null) 'start_minutes': startMinutes,
+      if (reminderEnabled != null) 'reminder_enabled': reminderEnabled,
+      if (reminderMinutes != null) 'reminder_minutes': reminderMinutes,
       if (notes != null) 'notes': notes,
       if (status != null) 'status': status,
       if (weekStart != null) 'week_start': weekStart,
@@ -783,6 +876,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Value<String>? title,
     Value<int?>? durationMinutes,
     Value<int?>? startMinutes,
+    Value<int>? reminderEnabled,
+    Value<int?>? reminderMinutes,
     Value<String?>? notes,
     Value<String>? status,
     Value<String>? weekStart,
@@ -800,6 +895,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
       title: title ?? this.title,
       durationMinutes: durationMinutes ?? this.durationMinutes,
       startMinutes: startMinutes ?? this.startMinutes,
+      reminderEnabled: reminderEnabled ?? this.reminderEnabled,
+      reminderMinutes: reminderMinutes ?? this.reminderMinutes,
       notes: notes ?? this.notes,
       status: status ?? this.status,
       weekStart: weekStart ?? this.weekStart,
@@ -828,6 +925,12 @@ class TasksCompanion extends UpdateCompanion<Task> {
     }
     if (startMinutes.present) {
       map['start_minutes'] = Variable<int>(startMinutes.value);
+    }
+    if (reminderEnabled.present) {
+      map['reminder_enabled'] = Variable<int>(reminderEnabled.value);
+    }
+    if (reminderMinutes.present) {
+      map['reminder_minutes'] = Variable<int>(reminderMinutes.value);
     }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
@@ -874,6 +977,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
           ..write('title: $title, ')
           ..write('durationMinutes: $durationMinutes, ')
           ..write('startMinutes: $startMinutes, ')
+          ..write('reminderEnabled: $reminderEnabled, ')
+          ..write('reminderMinutes: $reminderMinutes, ')
           ..write('notes: $notes, ')
           ..write('status: $status, ')
           ..write('weekStart: $weekStart, ')
@@ -2057,6 +2162,8 @@ typedef $$TasksTableCreateCompanionBuilder =
       required String title,
       Value<int?> durationMinutes,
       Value<int?> startMinutes,
+      Value<int> reminderEnabled,
+      Value<int?> reminderMinutes,
       Value<String?> notes,
       Value<String> status,
       required String weekStart,
@@ -2064,6 +2171,7 @@ typedef $$TasksTableCreateCompanionBuilder =
       Value<String?> originalPlannedDate,
       Value<int> movedCount,
       Value<int?> recurrenceTemplateId,
+      Value<int?> accentColor,
       required String createdAt,
       required String updatedAt,
       Value<String?> completedAt,
@@ -2074,6 +2182,8 @@ typedef $$TasksTableUpdateCompanionBuilder =
       Value<String> title,
       Value<int?> durationMinutes,
       Value<int?> startMinutes,
+      Value<int> reminderEnabled,
+      Value<int?> reminderMinutes,
       Value<String?> notes,
       Value<String> status,
       Value<String> weekStart,
@@ -2081,6 +2191,7 @@ typedef $$TasksTableUpdateCompanionBuilder =
       Value<String?> originalPlannedDate,
       Value<int> movedCount,
       Value<int?> recurrenceTemplateId,
+      Value<int?> accentColor,
       Value<String> createdAt,
       Value<String> updatedAt,
       Value<String?> completedAt,
@@ -2111,6 +2222,16 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
 
   ColumnFilters<int> get startMinutes => $composableBuilder(
     column: $table.startMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reminderEnabled => $composableBuilder(
+    column: $table.reminderEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reminderMinutes => $composableBuilder(
+    column: $table.reminderMinutes,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2146,6 +2267,11 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
 
   ColumnFilters<int> get recurrenceTemplateId => $composableBuilder(
     column: $table.recurrenceTemplateId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get accentColor => $composableBuilder(
+    column: $table.accentColor,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2194,6 +2320,16 @@ class $$TasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get reminderEnabled => $composableBuilder(
+    column: $table.reminderEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get reminderMinutes => $composableBuilder(
+    column: $table.reminderMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnOrderings(column),
@@ -2226,6 +2362,11 @@ class $$TasksTableOrderingComposer
 
   ColumnOrderings<int> get recurrenceTemplateId => $composableBuilder(
     column: $table.recurrenceTemplateId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get accentColor => $composableBuilder(
+    column: $table.accentColor,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -2270,6 +2411,16 @@ class $$TasksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get reminderEnabled => $composableBuilder(
+    column: $table.reminderEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get reminderMinutes => $composableBuilder(
+    column: $table.reminderMinutes,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
 
@@ -2296,6 +2447,11 @@ class $$TasksTableAnnotationComposer
 
   GeneratedColumn<int> get recurrenceTemplateId => $composableBuilder(
     column: $table.recurrenceTemplateId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get accentColor => $composableBuilder(
+    column: $table.accentColor,
     builder: (column) => column,
   );
 
@@ -2343,6 +2499,8 @@ class $$TasksTableTableManager
                 Value<String> title = const Value.absent(),
                 Value<int?> durationMinutes = const Value.absent(),
                 Value<int?> startMinutes = const Value.absent(),
+                Value<int> reminderEnabled = const Value.absent(),
+                Value<int?> reminderMinutes = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String> weekStart = const Value.absent(),
@@ -2350,6 +2508,7 @@ class $$TasksTableTableManager
                 Value<String?> originalPlannedDate = const Value.absent(),
                 Value<int> movedCount = const Value.absent(),
                 Value<int?> recurrenceTemplateId = const Value.absent(),
+                Value<int?> accentColor = const Value.absent(),
                 Value<String> createdAt = const Value.absent(),
                 Value<String> updatedAt = const Value.absent(),
                 Value<String?> completedAt = const Value.absent(),
@@ -2358,6 +2517,8 @@ class $$TasksTableTableManager
                 title: title,
                 durationMinutes: durationMinutes,
                 startMinutes: startMinutes,
+                reminderEnabled: reminderEnabled,
+                reminderMinutes: reminderMinutes,
                 notes: notes,
                 status: status,
                 weekStart: weekStart,
@@ -2365,6 +2526,7 @@ class $$TasksTableTableManager
                 originalPlannedDate: originalPlannedDate,
                 movedCount: movedCount,
                 recurrenceTemplateId: recurrenceTemplateId,
+                accentColor: accentColor,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 completedAt: completedAt,
@@ -2375,6 +2537,8 @@ class $$TasksTableTableManager
                 required String title,
                 Value<int?> durationMinutes = const Value.absent(),
                 Value<int?> startMinutes = const Value.absent(),
+                Value<int> reminderEnabled = const Value.absent(),
+                Value<int?> reminderMinutes = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 required String weekStart,
@@ -2382,6 +2546,7 @@ class $$TasksTableTableManager
                 Value<String?> originalPlannedDate = const Value.absent(),
                 Value<int> movedCount = const Value.absent(),
                 Value<int?> recurrenceTemplateId = const Value.absent(),
+                Value<int?> accentColor = const Value.absent(),
                 required String createdAt,
                 required String updatedAt,
                 Value<String?> completedAt = const Value.absent(),
@@ -2390,6 +2555,8 @@ class $$TasksTableTableManager
                 title: title,
                 durationMinutes: durationMinutes,
                 startMinutes: startMinutes,
+                reminderEnabled: reminderEnabled,
+                reminderMinutes: reminderMinutes,
                 notes: notes,
                 status: status,
                 weekStart: weekStart,
@@ -2397,6 +2564,7 @@ class $$TasksTableTableManager
                 originalPlannedDate: originalPlannedDate,
                 movedCount: movedCount,
                 recurrenceTemplateId: recurrenceTemplateId,
+                accentColor: accentColor,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 completedAt: completedAt,

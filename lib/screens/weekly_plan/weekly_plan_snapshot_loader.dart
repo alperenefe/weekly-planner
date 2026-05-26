@@ -22,6 +22,8 @@ Future<WeeklyPlanBoardSnapshot> loadWeeklyPlanBoardSnapshot({
 }) async {
   await weekService.ensureWeekTasks(weekStart);
   final pool = await repo.getPoolTasks(weekStart);
+  final orphans = await repo.getOrphanPlannedTasks(weekStart);
+  final poolMerged = [...pool, ...orphans];
   final copyApplied = await repo.isCopyFromPreviousApplied(weekStart);
   final dayIsos = weekdayIsosFromMonday(weekStart);
   final days = <List<Task>>[];
@@ -29,7 +31,7 @@ Future<WeeklyPlanBoardSnapshot> loadWeeklyPlanBoardSnapshot({
     days.add(await repo.getDayTasks(weekStart, iso));
   }
   return WeeklyPlanBoardSnapshot(
-    poolTasks: pool,
+    poolTasks: poolMerged,
     dayTasksByIndex: days,
     copyFromPreviousApplied: copyApplied,
   );

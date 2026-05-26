@@ -36,6 +36,14 @@ final class AppRouter {
         if (!f.monthlyGoalsEnabled && path == '/goals') {
           return '/plan';
         }
+        if (!f.recurringTemplatesEnabled &&
+            path.startsWith('/settings/recurring-templates')) {
+          return '/settings';
+        }
+        if (!f.weekTemplatesEnabled &&
+            path.startsWith('/settings/templates')) {
+          return '/settings';
+        }
         return null;
       },
       routes: [

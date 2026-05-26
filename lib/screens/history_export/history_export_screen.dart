@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ import '../../services/export_service.dart';
 import '../../services/summary_service.dart';
 import '../../theme/design_tokens.dart';
 import '../../date/turkish_date.dart';
+import '../../widgets/planner_dialogs.dart';
 import '../../widgets/planner_top_bar.dart';
 import '../../widgets/week_navigation_bar.dart';
 
@@ -30,6 +32,8 @@ class _HistoryExportScreenState extends State<HistoryExportScreen> {
   String? _expandedWeek;
   final Map<String, WeekSummary> _pastSummaryCache = {};
   PlanDataRevision? _planRevision;
+  String? _exportPreview;
+  bool _exportPreviewLoading = false;
 
   @override
   void initState() {
@@ -41,6 +45,22 @@ class _HistoryExportScreenState extends State<HistoryExportScreen> {
       _planRevision = r;
       r.addListener(_onPlanDataChanged);
       _loadPastWeeks();
+      _loadExportPreview();
+    });
+  }
+
+  Future<void> _loadExportPreview() async {
+    setState(() => _exportPreviewLoading = true);
+    final export = context.read<ExportService>();
+    final text = await export.exportLlmText(_exportWeekMonday);
+    if (!mounted) return;
+    final trimmed = text.trim();
+    final preview = trimmed.length > 480
+        ? '${trimmed.substring(0, 480)}…'
+        : trimmed;
+    setState(() {
+      _exportPreview = preview.isEmpty ? null : preview;
+      _exportPreviewLoading = false;
     });
   }
 
@@ -71,7 +91,20 @@ class _HistoryExportScreenState extends State<HistoryExportScreen> {
     });
   }
 
+  Future<bool> _confirmDataSharing(String actionLabel) async {
+    final ok = await PlannerDialogs.confirm(
+      context,
+      title: 'Veri paylaşımı',
+      message:
+          'Dışa aktarılan içerikte etkinlik başlıkları, notlar ve geçmiş '
+          'bilgiler yer alır. $actionLabel işlemine devam edilsin mi?',
+    );
+    return ok == true;
+  }
+
   Future<void> _exportJson() async {
+    if (!await _confirmDataSharing('Paylaşım')) return;
+    if (!mounted) return;
     final export = context.read<ExportService>();
     final json = await export.exportJson(_exportWeekMonday);
     final bytes = Uint8List.fromList(utf8.encode(json));
@@ -84,14 +117,13 @@ class _HistoryExportScreenState extends State<HistoryExportScreen> {
   }
 
   Future<void> _copyLlm() async {
+    if (!await _confirmDataSharing('Panoya kopyalama')) return;
+    if (!mounted) return;
     final export = context.read<ExportService>();
-    final messenger = ScaffoldMessenger.of(context);
     final text = await export.exportLlmText(_exportWeekMonday);
     await Clipboard.setData(ClipboardData(text: text));
     if (mounted) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Kopyalandı')),
-      );
+      showPlannerSnackBar(context, 'Kopyalandı');
     }
   }
 
@@ -99,6 +131,7 @@ class _HistoryExportScreenState extends State<HistoryExportScreen> {
     setState(() {
       _exportWeekMonday = addDaysIso(_exportWeekMonday, d);
     });
+    unawaited(_loadExportPreview());
   }
 
   void _onPastRowTap(String week) {
@@ -198,6 +231,49 @@ class _HistoryExportScreenState extends State<HistoryExportScreen> {
                   label: 'Hafta: $_exportWeekMonday',
                   onPrevious: () => _shiftExportWeek(-7),
                   onNext: () => _shiftExportWeek(7),
+                ),
+                const SizedBox(height: 12),
+                DecoratedBox(
+                  key: const Key('export_preview_card'),
+                  decoration: BoxDecoration(
+                    color: DesignTokens.slate900,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: DesignTokens.slate800),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Önizleme',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: DesignTokens.slate200,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        if (_exportPreviewLoading)
+                          const LinearProgressIndicator(minHeight: 2)
+                        else if (_exportPreview == null)
+                          Text(
+                            'Bu hafta için dışa aktarılacak içerik yok.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: DesignTokens.slate500,
+                            ),
+                          )
+                        else
+                          Text(
+                            _exportPreview!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: DesignTokens.slate400,
+                              fontFamily: 'monospace',
+                              height: 1.45,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 LayoutBuilder(

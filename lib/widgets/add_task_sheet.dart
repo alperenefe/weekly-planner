@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../date/week_calendar.dart';
 import '../plan_day_labels.dart';
 import '../theme/design_tokens.dart';
+import 'task_reminder_row.dart';
 
 typedef AddTaskSubmit = Future<void> Function(
   String title,
@@ -12,6 +13,8 @@ typedef AddTaskSubmit = Future<void> Function(
   List<int> dayIndices,
   int? startMinutes,
   int? accentColorArgb,
+  bool reminderEnabled,
+  int? reminderMinutes,
 );
 
 class AddTaskSheet extends StatefulWidget {
@@ -32,6 +35,8 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   bool _useStartTime = false;
   int _startMinutes = startMinutesFromQuarterIndex(36);
   int? _accentArgb;
+  bool _reminderEnabled = false;
+  int _reminderMinutes = 9 * 60;
 
   @override
   void dispose() {
@@ -89,6 +94,8 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         indices,
         startMinutes,
         _accentArgb,
+        _reminderEnabled,
+        _reminderEnabled ? _reminderMinutes : null,
       );
     } finally {
       if (mounted) {
@@ -136,6 +143,34 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     });
   }
 
+  Future<void> _pickReminderTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: _reminderMinutes ~/ 60,
+        minute: _reminderMinutes % 60,
+      ),
+      builder: (ctx, child) {
+        return Theme(
+          data: Theme.of(ctx).copyWith(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: DesignTokens.blue500,
+              brightness: Brightness.dark,
+            ).copyWith(surface: DesignTokens.slate900),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (!mounted || picked == null) return;
+    setState(() {
+      _reminderMinutes = snappedStartMinutesFromWallClock(
+        hour: picked.hour,
+        minute: picked.minute,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -159,12 +194,13 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                 ),
               ),
               const SizedBox(height: 20),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: DesignTokens.slate900,
+              Material(
+                color: DesignTokens.slate900,
+                shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: DesignTokens.slate800),
+                  side: const BorderSide(color: DesignTokens.slate800),
                 ),
+                clipBehavior: Clip.antiAlias,
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -259,6 +295,14 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                           ),
                         ),
                       ],
+                      const SizedBox(height: 12),
+                      TaskReminderRow(
+                        enabled: _reminderEnabled,
+                        minutesOfDay: _reminderMinutes,
+                        onEnabledChanged: (v) =>
+                            setState(() => _reminderEnabled = v),
+                        onPickTime: _pickReminderTime,
+                      ),
                       const SizedBox(height: 20),
                       Text(
                         'Hedef günler',

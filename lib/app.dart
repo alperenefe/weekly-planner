@@ -8,6 +8,7 @@ import 'router/app_router.dart';
 import 'services/planner_feature_flags_store.dart';
 import 'services/task_focus_timer_controller.dart';
 import 'theme/app_theme.dart';
+import 'widgets/onboarding_dialog.dart';
 import 'widgets/task_focus_timer_layer.dart';
 
 class WeeklyPlannerApp extends StatefulWidget {
@@ -75,8 +76,10 @@ class _WeeklyPlannerAppState extends State<WeeklyPlannerApp>
       theme: AppTheme.dark,
       routerConfig: _router!,
       builder: (context, child) {
-        return TaskFocusTimerLayer(
-          child: child ?? const SizedBox.shrink(),
+        return OnboardingGate(
+          child: TaskFocusTimerLayer(
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
     );

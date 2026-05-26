@@ -7,6 +7,9 @@ class MonthlyGoal {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
+    this.reminderEnabled = false,
+    this.reminderWeekday,
+    this.reminderMinutes,
   });
 
   final int id;
@@ -16,6 +19,10 @@ class MonthlyGoal {
   final String status;
   final String createdAt;
   final String updatedAt;
+  final bool reminderEnabled;
+  /// 1=Pazartesi … 7=Pazar
+  final int? reminderWeekday;
+  final int? reminderMinutes;
 }
 
 class MonthSummary {

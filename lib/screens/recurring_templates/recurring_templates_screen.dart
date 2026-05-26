@@ -8,6 +8,7 @@ import '../../data/db/app_database.dart';
 import '../../data/repositories/recurring_template_repository.dart';
 import '../../plan_day_labels.dart';
 import '../../theme/design_tokens.dart';
+import '../../widgets/planner_dialogs.dart';
 import '../../widgets/planner_top_bar.dart';
 
 class RecurringTemplatesScreen extends StatefulWidget {
@@ -56,13 +57,18 @@ class _RecurringTemplatesScreenState extends State<RecurringTemplatesScreen> {
       dayIndex = 0;
     }
     var active = (existing?.isActive ?? 1) == 1;
-    final ok = await showDialog<bool>(
-      context: context,
+    final ok = await PlannerDialogs.show<bool>(
+      context,
       builder: (dctx) {
         return StatefulBuilder(
           builder: (ctx, setLocal) {
-            return AlertDialog(
-              title: Text(existing == null ? 'Yeni tekrar' : 'Tekrarı düzenle'),
+            final fieldStyle = PlannerDialogs.dialogFieldTextStyle;
+            return PlannerDialogs.build(
+              title: PlannerDialogs.titleText(
+                existing == null
+                    ? 'Yeni otomatik görev'
+                    : 'Otomatik görevi düzenle',
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -70,27 +76,30 @@ class _RecurringTemplatesScreenState extends State<RecurringTemplatesScreen> {
                   children: [
                     TextField(
                       controller: titleCtrl,
-                      decoration: const InputDecoration(labelText: 'Başlık'),
+                      style: fieldStyle,
+                      cursorColor: DesignTokens.blue400,
+                      decoration: PlannerDialogs.fieldDecoration('Başlık'),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: durCtrl,
+                      style: fieldStyle,
+                      cursorColor: DesignTokens.blue400,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Süre (dk), isteğe bağlı',
+                      decoration: PlannerDialogs.fieldDecoration(
+                        'Süre (dk), isteğe bağlı',
                       ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: notesCtrl,
+                      style: fieldStyle,
+                      cursorColor: DesignTokens.blue400,
                       maxLines: 3,
-                      decoration: const InputDecoration(labelText: 'Not'),
+                      decoration: PlannerDialogs.fieldDecoration('Not'),
                     ),
                     const SizedBox(height: 12),
-                    Text(
-                      'Hedef',
-                      style: Theme.of(ctx).textTheme.labelLarge,
-                    ),
+                    const Text('Hedef', style: PlannerDialogs.bodyTextStyle),
                     const SizedBox(height: 6),
                     Wrap(
                       spacing: 6,
@@ -106,7 +115,10 @@ class _RecurringTemplatesScreenState extends State<RecurringTemplatesScreen> {
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Aktif'),
+                      title: Text(
+                        'Aktif',
+                        style: PlannerDialogs.dialogFieldTextStyle,
+                      ),
                       value: active,
                       onChanged: (v) => setLocal(() => active = v),
                     ),
@@ -114,13 +126,14 @@ class _RecurringTemplatesScreenState extends State<RecurringTemplatesScreen> {
                 ),
               ),
               actions: [
-                TextButton(
+                PlannerDialogs.cancelAction(
+                  dctx,
                   onPressed: () => Navigator.pop(dctx, false),
-                  child: const Text('İptal'),
                 ),
-                FilledButton(
+                PlannerDialogs.confirmAction(
+                  dctx,
+                  label: 'Kaydet',
                   onPressed: () => Navigator.pop(dctx, true),
-                  child: const Text('Kaydet'),
                 ),
               ],
             );
@@ -187,22 +200,10 @@ class _RecurringTemplatesScreenState extends State<RecurringTemplatesScreen> {
   }
 
   Future<void> _confirmDelete(RecurringTemplate t) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dctx) => AlertDialog(
-        title: const Text('Sil'),
-        content: Text('“${t.title}” silinsin mi?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dctx, false),
-            child: const Text('İptal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dctx, true),
-            child: const Text('Sil'),
-          ),
-        ],
-      ),
+    final ok = await PlannerDialogs.confirmDelete(
+      context,
+      title: 'Sil',
+      message: '“${t.title}” silinsin mi?',
     );
     if (ok != true || !mounted) return;
     await context.read<RecurringTemplateRepository>().deleteTemplate(t.id);
@@ -215,7 +216,7 @@ class _RecurringTemplatesScreenState extends State<RecurringTemplatesScreen> {
     return Scaffold(
       key: const Key('recurring_templates_screen'),
       backgroundColor: DesignTokens.slate950,
-      appBar: const PlannerTopBar(title: 'Tekrarlayan görevler'),
+      appBar: const PlannerTopBar(title: 'Her hafta otomatik görevler'),
       floatingActionButton: FloatingActionButton(
         key: const Key('recurring_templates_new'),
         onPressed: () => unawaited(_openEditor()),
@@ -228,7 +229,7 @@ class _RecurringTemplatesScreenState extends State<RecurringTemplatesScreen> {
           : _items.isEmpty
               ? Center(
                   child: Text(
-                    'Henüz tekrar yok',
+                    'Henüz otomatik görev tanımlı değil',
                     key: const Key('recurring_templates_empty'),
                     style: theme.textTheme.bodyLarge?.copyWith(
                       color: DesignTokens.slate400,

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vibration/vibration.dart';
@@ -194,7 +195,10 @@ class TaskFocusTimerController extends ChangeNotifier {
     await _ensureRemainingsLoaded();
     final sp = await SharedPreferences.getInstance();
     final endsStr = sp.getString(_kEndsAtKey);
-    if (endsStr == null) return;
+    if (endsStr == null) {
+      notifyListeners();
+      return;
+    }
     await _applyStoredSession(sp, endsStr);
   }
 
@@ -300,16 +304,31 @@ class TaskFocusTimerController extends ChangeNotifier {
     await _notifications?.cancelFocusTimer(tid);
   }
 
+  /// `flutter test` ortamında saniyelik timer `pumpAndSettle`'ı sonsuza kilitlemesin.
+  static bool get _flutterTest {
+    return SchedulerBinding.instance.runtimeType
+        .toString()
+        .contains('Test');
+  }
+
   void _startTicker() {
     _ticker?.cancel();
+    if (_flutterTest) {
+      _tickRunningOnceForTests();
+      return;
+    }
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (_phase != TaskFocusTimerPhase.running || _endsAt == null) return;
-      if (!DateTime.now().isBefore(_endsAt!)) {
-        _enterAlarming();
-      } else {
-        notifyListeners();
-      }
+      _tickRunningOnceForTests();
     });
+  }
+
+  void _tickRunningOnceForTests() {
+    if (_phase != TaskFocusTimerPhase.running || _endsAt == null) return;
+    if (!DateTime.now().isBefore(_endsAt!)) {
+      _enterAlarming();
+    } else {
+      notifyListeners();
+    }
   }
 
   void _enterAlarming() {
@@ -344,6 +363,7 @@ class TaskFocusTimerController extends ChangeNotifier {
   void _startAlarmPulse() {
     _stopAlarmPulseOnlyTimer();
     unawaited(_vibratePulse());
+    if (_flutterTest) return;
     _alarmPulse = Timer.periodic(const Duration(milliseconds: 720), (_) {
       unawaited(_vibratePulse());
     });

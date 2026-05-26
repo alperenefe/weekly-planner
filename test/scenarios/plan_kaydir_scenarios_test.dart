@@ -21,11 +21,11 @@ void main() {
 
       await tester.tap(find.byKey(const Key('top_bar_more')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Planı kaydır').last);
+      await tester.tap(find.text('Günlük planı kaydır').last);
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('plan_shift_sheet')), findsOneWidget);
-      expect(find.text('Planı kaydır'), findsWidgets);
+      expect(find.text('Günlük planı kaydır'), findsWidgets);
       expect(find.byKey(const Key('plan_shift_day_1')), findsOneWidget);
       expect(find.byKey(const Key('plan_shift_day_7')), findsOneWidget);
     });
@@ -57,6 +57,7 @@ void main() {
             recurrenceTemplateId: null,
             createdAt: stamp,
             updatedAt: stamp,
+            reminderEnabled: 0,
             completedAt: null,
           );
         }
@@ -76,7 +77,7 @@ void main() {
                     t(id: 3, title: 'c', startM: 11 * 60),
                   ];
                 },
-                onApply: (_, __, ___) async {},
+                onApply: (_, _, _) async {},
               ),
             ),
           ),
@@ -123,6 +124,7 @@ void main() {
           recurrenceTemplateId: null,
           createdAt: stamp,
           updatedAt: stamp,
+          reminderEnabled: 0,
           completedAt: null,
         );
       }
@@ -139,7 +141,7 @@ void main() {
                 if (iso == thuIso) return [one(2, 'per', 15 * 60, thuIso)];
                 return [];
               },
-              onApply: (_, __, ___) async {},
+              onApply: (_, _, _) async {},
             ),
           ),
         ),
@@ -186,6 +188,7 @@ void main() {
                     recurrenceTemplateId: null,
                     createdAt: stamp,
                     updatedAt: stamp,
+                    reminderEnabled: 0,
                     completedAt: null,
                   ),
                   Task(
@@ -202,11 +205,12 @@ void main() {
                     recurrenceTemplateId: null,
                     createdAt: stamp,
                     updatedAt: stamp,
+                    reminderEnabled: 0,
                     completedAt: null,
                   ),
                 ];
               },
-              onApply: (_, __, ___) async {},
+              onApply: (_, _, _) async {},
             ),
           ),
         ),
@@ -227,7 +231,7 @@ void main() {
               weekStart: weekMonday,
               clock: () => DateTime(2026, 4, 28, 10, 0),
               loadDayTasks: (_) async => [],
-              onApply: (_, __, ___) async {},
+              onApply: (_, _, _) async {},
             ),
           ),
         ),
@@ -257,7 +261,7 @@ void main() {
               weekStart: weekMonday,
               clock: () => DateTime(2026, 5, 2, 12, 0),
               loadDayTasks: (_) async => [],
-              onApply: (_, __, ___) async {},
+              onApply: (_, _, _) async {},
             ),
           ),
         ),
@@ -308,7 +312,7 @@ void main() {
 
       await tester.tap(find.byKey(const Key('top_bar_more')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Planı kaydır').last);
+      await tester.tap(find.text('Günlük planı kaydır').last);
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(Key('plan_shift_anchor_${10 * 60}')));
@@ -325,7 +329,7 @@ void main() {
       expect(b.startMinutes, 11 * 60 + 30);
     });
 
-    testWidgets('S9 özellik kapalıyken menüde Planı kaydır yok', (tester) async {
+    testWidgets('S9 özellik kapalıyken menüde Günlük planı kaydır yok', (tester) async {
       final db = AppDatabase.memory();
       addTearDown(() async {
         await db.close();
@@ -343,11 +347,11 @@ void main() {
       await tester.tap(find.byKey(const Key('top_bar_more')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Planı kaydır'), findsNothing);
-      expect(find.text('Haftayı yenile'), findsOneWidget);
+      expect(find.text('Günlük planı kaydır'), findsNothing);
+      expect(find.text('Listeyi yenile'), findsOneWidget);
     });
 
-    testWidgets('S10 Haftayı yenile dokunulunca ekran ayakta', (tester) async {
+    testWidgets('S10 Listeyi yenile dokunulunca ekran ayakta', (tester) async {
       final db = AppDatabase.memory();
       addTearDown(() async {
         await db.close();
@@ -357,7 +361,7 @@ void main() {
 
       await tester.tap(find.byKey(const Key('top_bar_more')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Haftayı yenile'));
+      await tester.tap(find.text('Listeyi yenile'));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);

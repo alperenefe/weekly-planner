@@ -9,8 +9,10 @@ import 'package:timezone/timezone.dart' as tz;
 class PlannerLocalNotifications {
   PlannerLocalNotifications();
 
-  static const _channelId = 'focus_timer';
-  static const _channelName = 'Odak süresi';
+  static const _focusChannelId = 'focus_timer';
+  static const _focusChannelName = 'Odak süresi';
+  static const _reminderChannelId = 'reminders';
+  static const _reminderChannelName = 'Hatırlatıcılar';
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -41,9 +43,17 @@ class PlannerLocalNotifications {
               AndroidFlutterLocalNotificationsPlugin>();
       await android?.createNotificationChannel(
         const AndroidNotificationChannel(
-          _channelId,
-          _channelName,
+          _focusChannelId,
+          _focusChannelName,
           importance: Importance.high,
+        ),
+      );
+      await android?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          _reminderChannelId,
+          _reminderChannelName,
+          description: 'Günlük özet ve etkinlik hatırlatmaları',
+          importance: Importance.defaultImportance,
         ),
       );
       await android?.requestNotificationsPermission();
@@ -57,9 +67,189 @@ class PlannerLocalNotifications {
     }
   }
 
-  int _notifIdScheduled(int taskId) => 5_000_000 + (taskId % 100_000);
+  int _notifIdFocusScheduled(int taskId) => 5_000_000 + (taskId % 100_000);
 
-  int _notifIdOngoing(int taskId) => 5_100_000 + (taskId % 100_000);
+  int _notifIdFocusOngoing(int taskId) => 5_100_000 + (taskId % 100_000);
+
+  int _notifIdTask(int taskId) => 6_000_000 + (taskId % 100_000);
+
+  static const int _notifIdDailySummary = 6_200_000;
+
+  int _notifIdGoal(int goalId) => 6_300_000 + (goalId % 100_000);
+
+  NotificationDetails get _reminderDetails => NotificationDetails(
+        android: AndroidNotificationDetails(
+          _reminderChannelId,
+          _reminderChannelName,
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+          autoCancel: true,
+        ),
+        iOS: const DarwinNotificationDetails(),
+      );
+
+  tz.TZDateTime _nextInstanceOfMinutes(int minutesOfDay) {
+    final h = minutesOfDay ~/ 60;
+    final m = minutesOfDay % 60;
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      h,
+      m,
+    );
+    if (!scheduled.isAfter(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
+    return scheduled;
+  }
+
+  tz.TZDateTime _nextInstanceOfWeekdayTime(int weekday, int minutesOfDay) {
+    final targetDart = weekday.clamp(1, 7);
+    final h = minutesOfDay ~/ 60;
+    final m = minutesOfDay % 60;
+    var scheduled = _nextInstanceOfMinutes(minutesOfDay);
+    while (scheduled.weekday != targetDart) {
+      scheduled = scheduled.add(const Duration(days: 1));
+      scheduled = tz.TZDateTime(
+        tz.local,
+        scheduled.year,
+        scheduled.month,
+        scheduled.day,
+        h,
+        m,
+      );
+    }
+    return scheduled;
+  }
+
+  Future<void> scheduleDailySummary({
+    required int minutesOfDay,
+    required String body,
+  }) async {
+    if (!_ready) return;
+    try {
+      await _plugin.zonedSchedule(
+        id: _notifIdDailySummary,
+        scheduledDate: _nextInstanceOfMinutes(minutesOfDay),
+        matchDateTimeComponents: DateTimeComponents.time,
+        notificationDetails: _reminderDetails,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        title: 'Bugünün planı',
+        body: body,
+      );
+    } on Object {
+      return;
+    }
+  }
+
+  Future<void> cancelDailySummary() async {
+    if (!_ready) return;
+    try {
+      await _plugin.cancel(id: _notifIdDailySummary);
+    } on Object {
+      return;
+    }
+  }
+
+  Future<void> scheduleTaskReminder({
+    required int taskId,
+    required DateTime when,
+    required String title,
+    required String body,
+  }) async {
+    if (!_ready || taskId <= 0) return;
+    try {
+      final tzWhen = tz.TZDateTime.from(when, tz.local);
+      if (!tzWhen.isAfter(tz.TZDateTime.now(tz.local))) return;
+      await _plugin.zonedSchedule(
+        id: _notifIdTask(taskId),
+        scheduledDate: tzWhen,
+        notificationDetails: _reminderDetails,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        title: title.isEmpty ? 'Hatırlatma' : title,
+        body: body,
+      );
+    } on Object {
+      return;
+    }
+  }
+
+  Future<void> cancelTaskReminder(int taskId) async {
+    if (!_ready || taskId <= 0) return;
+    try {
+      await _plugin.cancel(id: _notifIdTask(taskId));
+    } on Object {
+      return;
+    }
+  }
+
+  Future<void> scheduleMonthlyGoalReminder({
+    required int goalId,
+    required int weekday,
+    required int minutesOfDay,
+    required String title,
+  }) async {
+    if (!_ready || goalId <= 0) return;
+    try {
+      await _plugin.zonedSchedule(
+        id: _notifIdGoal(goalId),
+        scheduledDate: _nextInstanceOfWeekdayTime(weekday, minutesOfDay),
+        matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+        notificationDetails: _reminderDetails,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        title: 'Aylık hedef',
+        body: title.isEmpty ? 'Hedef hatırlatması' : title,
+      );
+    } on Object {
+      return;
+    }
+  }
+
+  Future<void> cancelMonthlyGoalReminder(int goalId) async {
+    if (!_ready || goalId <= 0) return;
+    try {
+      await _plugin.cancel(id: _notifIdGoal(goalId));
+    } on Object {
+      return;
+    }
+  }
+
+  Future<void> cancelAllReminders({
+    Iterable<int> taskIds = const [],
+    Iterable<int> goalIds = const [],
+  }) async {
+    if (!_ready) return;
+    try {
+      await _plugin.cancel(id: _notifIdDailySummary);
+      for (final id in taskIds) {
+        await _plugin.cancel(id: _notifIdTask(id));
+      }
+      for (final id in goalIds) {
+        await _plugin.cancel(id: _notifIdGoal(id));
+      }
+    } on Object {
+      return;
+    }
+  }
+
+  Future<void> ensureReminderPermissions() async {
+    if (!_ready) return;
+    try {
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      await android?.requestNotificationsPermission();
+      final ios = _plugin
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>();
+      await ios?.requestPermissions(alert: true, badge: true, sound: true);
+    } on Object {
+      return;
+    }
+  }
 
   Future<void> showFocusTimerRunning({
     required DateTime end,
@@ -74,13 +264,13 @@ class PlannerLocalNotifications {
     }
     try {
       await _plugin.show(
-        id: _notifIdOngoing(taskId),
+        id: _notifIdFocusOngoing(taskId),
         title: title.isEmpty ? 'Odak' : title,
         body: 'Bitişe kadar geri sayım',
         notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
-            _channelId,
-            _channelName,
+            _focusChannelId,
+            _focusChannelName,
             importance: Importance.defaultImportance,
             priority: Priority.defaultPriority,
             ongoing: true,
@@ -113,12 +303,12 @@ class PlannerLocalNotifications {
         return;
       }
       await _plugin.zonedSchedule(
-        id: _notifIdScheduled(taskId),
+        id: _notifIdFocusScheduled(taskId),
         scheduledDate: when,
         notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
-            _channelId,
-            _channelName,
+            _focusChannelId,
+            _focusChannelName,
             importance: Importance.high,
             priority: Priority.high,
           ),
@@ -138,8 +328,8 @@ class PlannerLocalNotifications {
       return;
     }
     try {
-      await _plugin.cancel(id: _notifIdScheduled(taskId));
-      await _plugin.cancel(id: _notifIdOngoing(taskId));
+      await _plugin.cancel(id: _notifIdFocusScheduled(taskId));
+      await _plugin.cancel(id: _notifIdFocusOngoing(taskId));
     } on Object {
       return;
     }

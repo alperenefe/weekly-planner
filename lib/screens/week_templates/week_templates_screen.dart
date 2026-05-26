@@ -10,6 +10,7 @@ import '../../data/repositories/week_template_tasks_companion.dart';
 import '../../models/week_template.dart';
 import '../../plan_day_labels.dart';
 import '../../theme/design_tokens.dart';
+import '../../widgets/planner_dialogs.dart';
 import 'week_template_detail_board.dart';
 
 class WeekTemplatesScreen extends StatefulWidget {
@@ -55,27 +56,12 @@ class _WeekTemplatesScreenState extends State<WeekTemplatesScreen> {
   }
 
   Future<void> _createTemplate() async {
-    final ctrl = TextEditingController();
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Yeni şablon'),
-        content: TextField(
-          autofocus: true,
-          controller: ctrl,
-          decoration: const InputDecoration(labelText: 'İsim'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('İptal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-            child: const Text('Oluştur'),
-          ),
-        ],
-      ),
+    final name = await PlannerDialogs.promptText(
+      context,
+      title: 'Yeni kayıtlı plan',
+      labelText: 'İsim',
+      confirmLabel: 'Oluştur',
+      autofocus: true,
     );
     if (name == null || name.isEmpty || !mounted) return;
     final id = await context.read<WeekTemplateRepository>().insertTemplate(name);
@@ -87,22 +73,10 @@ class _WeekTemplatesScreenState extends State<WeekTemplatesScreen> {
   }
 
   Future<void> _deleteTemplate(WeekTemplate t) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Şablonu sil'),
-        content: const Text('Bu şablon silinecek. Emin misin?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('İptal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Sil'),
-          ),
-        ],
-      ),
+    final ok = await PlannerDialogs.confirmDelete(
+      context,
+      title: 'Kayıtlı planı sil',
+      message: 'Bu kayıtlı hafta planı silinecek. Emin misin?',
     );
     if (ok != true || !mounted) return;
     await context.read<WeekTemplateRepository>().deleteTemplate(t.id);
@@ -110,23 +84,10 @@ class _WeekTemplatesScreenState extends State<WeekTemplatesScreen> {
   }
 
   Future<void> _renameTemplate(WeekTemplate t) async {
-    final ctrl = TextEditingController(text: t.name);
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('İsim değiştir'),
-        content: TextField(controller: ctrl),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('İptal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-            child: const Text('Kaydet'),
-          ),
-        ],
-      ),
+    final name = await PlannerDialogs.promptText(
+      context,
+      title: 'İsim değiştir',
+      initialValue: t.name,
     );
     if (name == null || name.isEmpty || !mounted) return;
     await context.read<WeekTemplateRepository>().updateTemplateName(t.id, name);
@@ -141,7 +102,7 @@ class _WeekTemplatesScreenState extends State<WeekTemplatesScreen> {
       appBar: AppBar(
         backgroundColor: DesignTokens.slate950,
         foregroundColor: DesignTokens.white,
-        title: const Text('Haftalık şablonlar'),
+        title: const Text('Kayıtlı hafta planları'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -156,7 +117,7 @@ class _WeekTemplatesScreenState extends State<WeekTemplatesScreen> {
               key: const Key('week_templates_new_btn'),
               onPressed: _createTemplate,
               icon: const Icon(Icons.add),
-              label: const Text('Yeni Şablon'),
+              label: const Text('Yeni kayıtlı plan'),
             ),
           ),
           Expanded(
@@ -165,7 +126,7 @@ class _WeekTemplatesScreenState extends State<WeekTemplatesScreen> {
                 : _templates.isEmpty
                     ? Center(
                         child: Text(
-                          'Henüz şablon yok',
+                          'Henüz kayıtlı plan yok',
                           key: const Key('week_templates_empty'),
                           style: TextStyle(
                             color: DesignTokens.slate500,
@@ -379,23 +340,10 @@ class _WeekTemplateDetailScreenState extends State<WeekTemplateDetailScreen> {
 
   Future<void> _renameTemplate() async {
     if (_detail == null) return;
-    final ctrl = TextEditingController(text: _detail!.template.name);
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Şablon adı'),
-        content: TextField(controller: ctrl),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('İptal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-            child: const Text('Kaydet'),
-          ),
-        ],
-      ),
+    final name = await PlannerDialogs.promptText(
+      context,
+      title: 'Kayıtlı plan adı',
+      initialValue: _detail!.template.name,
     );
     if (name == null || name.isEmpty || !mounted) return;
     await context.read<WeekTemplateRepository>().updateTemplateName(

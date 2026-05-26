@@ -8,6 +8,7 @@ class PlannerFeatureFlags {
     this.historyExportTabEnabled = true,
     this.planBoardSearchEnabled = true,
     this.monthlyGoalsEnabled = true,
+    this.recurringTemplatesEnabled = true,
     this.weekTemplatesEnabled = true,
   });
 
@@ -17,6 +18,7 @@ class PlannerFeatureFlags {
   final bool historyExportTabEnabled;
   final bool planBoardSearchEnabled;
   final bool monthlyGoalsEnabled;
+  final bool recurringTemplatesEnabled;
   final bool weekTemplatesEnabled;
 
   PlannerFeatureFlags copyWith({
@@ -26,6 +28,7 @@ class PlannerFeatureFlags {
     bool? historyExportTabEnabled,
     bool? planBoardSearchEnabled,
     bool? monthlyGoalsEnabled,
+    bool? recurringTemplatesEnabled,
     bool? weekTemplatesEnabled,
   }) {
     return PlannerFeatureFlags(
@@ -40,6 +43,8 @@ class PlannerFeatureFlags {
           planBoardSearchEnabled ?? this.planBoardSearchEnabled,
       monthlyGoalsEnabled:
           monthlyGoalsEnabled ?? this.monthlyGoalsEnabled,
+      recurringTemplatesEnabled:
+          recurringTemplatesEnabled ?? this.recurringTemplatesEnabled,
       weekTemplatesEnabled:
           weekTemplatesEnabled ?? this.weekTemplatesEnabled,
     );
@@ -54,6 +59,7 @@ class PlannerFeatureFlags {
         other.historyExportTabEnabled == historyExportTabEnabled &&
         other.planBoardSearchEnabled == planBoardSearchEnabled &&
         other.monthlyGoalsEnabled == monthlyGoalsEnabled &&
+        other.recurringTemplatesEnabled == recurringTemplatesEnabled &&
         other.weekTemplatesEnabled == weekTemplatesEnabled;
   }
 
@@ -65,6 +71,7 @@ class PlannerFeatureFlags {
         historyExportTabEnabled,
         planBoardSearchEnabled,
         monthlyGoalsEnabled,
+        recurringTemplatesEnabled,
         weekTemplatesEnabled,
       );
 
@@ -75,6 +82,7 @@ class PlannerFeatureFlags {
         'historyExportTabEnabled': historyExportTabEnabled,
         'planBoardSearchEnabled': planBoardSearchEnabled,
         'monthlyGoalsEnabled': monthlyGoalsEnabled,
+        'recurringTemplatesEnabled': recurringTemplatesEnabled,
         'weekTemplatesEnabled': weekTemplatesEnabled,
       };
 
@@ -92,6 +100,8 @@ class PlannerFeatureFlags {
       planBoardSearchEnabled:
           (json['planBoardSearchEnabled'] as bool?) ?? true,
       monthlyGoalsEnabled: (json['monthlyGoalsEnabled'] as bool?) ?? true,
+      recurringTemplatesEnabled:
+          (json['recurringTemplatesEnabled'] as bool?) ?? true,
       weekTemplatesEnabled: (json['weekTemplatesEnabled'] as bool?) ?? true,
     );
   }
