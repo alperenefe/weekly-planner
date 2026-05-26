@@ -9,16 +9,18 @@ Müzik Teorisi ile aynı akış: yalnızca **Actions → Run workflow** ile APK 
 
 ## Müzik Teorisi’nden ne tekrarlanır?
 
-Aynı Firebase projesini (`music-trainer-90e39`) kullanabilirsin:
+Firebase projesi: **`weekly-p`** (Müzik Teorisi’nden ayrı — kendi service account gerekir).
 
-| Secret | Bu repo için |
-|--------|----------------|
-| `FIREBASE_SERVICE_ACCOUNT_JSON` | **Aynı JSON** (music_theory_trainer’daki gibi) |
-| `FIREBASE_TESTER_GROUPS` | **Aynı** — örn. `testers` |
-| `FIREBASE_ANDROID_APP_ID` | **Farklı** — Weekly Planner Android uygulamasının App ID’si |
-| `GOOGLE_SERVICES_JSON` | İsteğe bağlı; bu uygulama için indirdiğin `google-services.json` |
+| Secret | Değer |
+|--------|--------|
+| `FIREBASE_ANDROID_APP_ID` | `1:348633660665:android:5ade7e4950bb2b9da7f628` |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | **weekly-p** GCP projesinde oluşturulan SA JSON (Müzik’teki değil) |
+| `FIREBASE_TESTER_GROUPS` | örn. `testers` |
+| `GOOGLE_SERVICES_JSON` | İsteğe bağlı — `android/app/google-services.json` içeriği |
 
-Service account ve **Firebase App Testers API** bir kez açıldıysa tekrar gerekmez.
+**Firebase App Testers API** → Google Cloud, proje **weekly-p** üzerinde etkin olmalı.
+
+**Pipeline «Failed to authenticate»:** `weekly-p` → IAM → `firebase-adminsdk-fbsvc@...` (veya `github-firebase-distribute`) → rol **Firebase App Distribution Admin** ekle; APIs → **Firebase App Distribution API** etkin.
 
 ---
 
