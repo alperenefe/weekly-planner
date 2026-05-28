@@ -15,6 +15,7 @@ class ReminderSettingsStore extends ChangeNotifier {
   bool remindersEnabled = true;
   bool dailySummaryEnabled = false;
   int dailySummaryMinutes = 8 * 60;
+  bool focusVibrationEnabled = true;
 
   Future<void> ensureLoaded() async {
     if (_loaded) return;
@@ -27,6 +28,8 @@ class ReminderSettingsStore extends ChangeNotifier {
         dailySummaryEnabled = (j['dailySummaryEnabled'] as bool?) ?? false;
         dailySummaryMinutes =
             (j['dailySummaryMinutes'] as int?) ?? 8 * 60;
+        focusVibrationEnabled =
+            (j['focusVibrationEnabled'] as bool?) ?? true;
       } on Object {
         // varsayılanlar
       }
@@ -43,6 +46,7 @@ class ReminderSettingsStore extends ChangeNotifier {
         'remindersEnabled': remindersEnabled,
         'dailySummaryEnabled': dailySummaryEnabled,
         'dailySummaryMinutes': dailySummaryMinutes,
+        'focusVibrationEnabled': focusVibrationEnabled,
       }),
     );
     notifyListeners();
@@ -63,6 +67,12 @@ class ReminderSettingsStore extends ChangeNotifier {
   Future<void> setDailySummaryMinutes(int minutes) async {
     await ensureLoaded();
     dailySummaryMinutes = minutes.clamp(0, 1439);
+    await _persist();
+  }
+
+  Future<void> setFocusVibrationEnabled(bool v) async {
+    await ensureLoaded();
+    focusVibrationEnabled = v;
     await _persist();
   }
 }

@@ -17,6 +17,7 @@ import 'services/export_service.dart';
 import 'services/monthly_goal_service.dart';
 import 'services/summary_service.dart';
 import 'services/planner_feature_flags_store.dart';
+import 'services/focus_timer_notification_bridge.dart';
 import 'services/planner_local_notifications.dart';
 import 'services/reminder_scheduler_service.dart';
 import 'services/reminder_settings_store.dart';
@@ -33,7 +34,13 @@ Future<void> main() async {
   final taskRepo = TaskRepository(db);
   final templateRepo = RecurringTemplateRepository(db);
   final localNotifications = PlannerLocalNotifications();
-  await localNotifications.init();
+  await localNotifications.init(
+    onNotificationResponse: (response) {
+      unawaited(FocusTimerNotificationBridge.foregroundTap(response));
+    },
+    onBackgroundNotificationResponse:
+        FocusTimerNotificationBridge.backgroundTap,
+  );
   final reminderSettings = ReminderSettingsStore();
   await reminderSettings.ensureLoaded();
   final featureFlags = PlannerFeatureFlagsStore();
@@ -83,6 +90,8 @@ Future<void> main() async {
         ChangeNotifierProvider(
           create: (c) => TaskFocusTimerController(
             notifications: c.read<PlannerLocalNotifications>(),
+            settings: c.read<ReminderSettingsStore>(),
+            taskRepo: c.read<TaskRepository>(),
           ),
         ),
       ],

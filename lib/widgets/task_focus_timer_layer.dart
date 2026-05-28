@@ -105,7 +105,7 @@ class _TaskFocusTimerLayerState extends State<TaskFocusTimerLayer> {
             ),
             PlannerDialogs.confirmAction(
               ctx,
-              label: 'Tamam',
+              label: 'Sustur',
               onPressed: () async {
                 await c.acknowledgeAlarm();
                 if (ctx.mounted) {
@@ -132,14 +132,17 @@ class _TaskFocusTimerLayerState extends State<TaskFocusTimerLayer> {
       fit: StackFit.expand,
       children: [
         widget.child,
-        if (c.phase == TaskFocusTimerPhase.running)
+        if (c.phase == TaskFocusTimerPhase.running ||
+            c.phase == TaskFocusTimerPhase.alarming)
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
             child: Material(
               elevation: 16,
-              color: DesignTokens.slate900,
+              color: c.phase == TaskFocusTimerPhase.alarming
+                  ? const Color(0xFF7F1D1D)
+                  : DesignTokens.slate900,
               child: SafeArea(
                 top: false,
                 child: Padding(
@@ -165,9 +168,13 @@ class _TaskFocusTimerLayerState extends State<TaskFocusTimerLayer> {
                             ),
                             const SizedBox(height: 10),
                             Text(
-                              'Kalan ${_formatMmSs(c.remainingNow())}',
-                              style: const TextStyle(
-                                color: DesignTokens.blue400,
+                              c.phase == TaskFocusTimerPhase.alarming
+                                  ? 'Süre doldu'
+                                  : 'Kalan ${_formatMmSs(c.remainingNow())}',
+                              style: TextStyle(
+                                color: c.phase == TaskFocusTimerPhase.alarming
+                                    ? const Color(0xFFFECACA)
+                                    : DesignTokens.blue400,
                                 fontWeight: FontWeight.w800,
                                 fontSize: 30,
                                 height: 1.1,
@@ -177,6 +184,38 @@ class _TaskFocusTimerLayerState extends State<TaskFocusTimerLayer> {
                           ],
                         ),
                       ),
+                      if (c.phase == TaskFocusTimerPhase.alarming) ...[
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 14,
+                            ),
+                            foregroundColor: const Color(0xFFFECACA),
+                            textStyle: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          onPressed: () => unawaited(c.acknowledgeAlarm()),
+                          child: const Text('Sustur'),
+                        ),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 14,
+                            ),
+                            foregroundColor: DesignTokens.green500,
+                            textStyle: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          onPressed: () => unawaited(_markFocusTaskDone(c)),
+                          child: const Text('Tamamlandı'),
+                        ),
+                      ] else ...[
                       TextButton(
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
@@ -222,6 +261,7 @@ class _TaskFocusTimerLayerState extends State<TaskFocusTimerLayer> {
                         onPressed: () => unawaited(c.resetGoalAndStop()),
                         child: const Text('Sıfırla'),
                       ),
+                      ],
                     ],
                   ),
                 ),

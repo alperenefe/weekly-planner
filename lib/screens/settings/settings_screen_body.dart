@@ -393,6 +393,45 @@ class _SettingsScrollBody extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         Text(
+          'Odak süresi',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: DesignTokens.slate500,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Consumer<ReminderSettingsStore>(
+          builder: (context, rs, _) {
+            final tileShape = RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: DesignTokens.slate800),
+            );
+            return SwitchListTile(
+              key: const Key('settings_focus_vibration'),
+              tileColor: DesignTokens.slate900.withValues(alpha: 0.6),
+              shape: tileShape,
+              title: Text(
+                'Süre bitince titreşim',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: DesignTokens.slate200,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: Text(
+                'Kapalıyken odak süresi bitince titreşim olmaz; bildirimden Sustur ile kapatabilirsin',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: DesignTokens.slate400,
+                ),
+              ),
+              value: rs.focusVibrationEnabled,
+              onChanged: (v) =>
+                  unawaited(rs.setFocusVibrationEnabled(v)),
+            );
+          },
+        ),
+        const SizedBox(height: 24),
+        Text(
           'Hatırlatıcılar',
           style: theme.textTheme.labelSmall?.copyWith(
             color: DesignTokens.slate500,

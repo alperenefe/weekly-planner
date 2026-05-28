@@ -28,13 +28,19 @@ class BoardColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isToday = titleHighlightToday;
     final column = SizedBox(
       width: width,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: DesignTokens.slate900.withValues(alpha: 0.5),
+          color: isToday
+              ? DesignTokens.slate800.withValues(alpha: 0.95)
+              : DesignTokens.slate900.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: DesignTokens.slate800),
+          border: Border.all(
+            color: isToday ? DesignTokens.blue500 : DesignTokens.slate800,
+            width: isToday ? 2 : 1,
+          ),
         ),
         child: Padding(
           padding: const EdgeInsets.all(DesignTokens.space3),
@@ -43,23 +49,28 @@ class BoardColumn extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  if (isToday)
+                    Container(
+                      key: Key('board_col_today_dot_$title'),
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: const BoxDecoration(
+                        color: DesignTokens.blue500,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                   Expanded(
                     child: Text(
                       title,
                       key: Key('board_col_title_$title'),
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: titleHighlightToday
+                            color: isToday
                                 ? DesignTokens.blue400
                                 : DesignTokens.slate200,
                             fontWeight: FontWeight.w600,
                             fontSize: 18,
                             height: 28 / 18,
-                            decoration: titleHighlightToday
-                                ? TextDecoration.underline
-                                : null,
-                            decorationColor: titleHighlightToday
-                                ? DesignTokens.blue400
-                                : null,
                           ),
                     ),
                   ),
@@ -93,9 +104,11 @@ class BoardColumn extends StatelessWidget {
                   subtitle!,
                   key: Key('board_col_sub_$title'),
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: DesignTokens.textMuted,
+                        color: isToday
+                            ? DesignTokens.blue400.withValues(alpha: 0.85)
+                            : DesignTokens.textMuted,
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 1.2,
+                        letterSpacing: isToday ? 0.2 : 1.2,
                         fontSize: 12,
                       ),
                 ),
@@ -109,7 +122,9 @@ class BoardColumn extends StatelessWidget {
                     value: (doneCount ?? 0) / taskCount!,
                     minHeight: 4,
                     backgroundColor: DesignTokens.slate800,
-                    color: DesignTokens.blue500,
+                    color: isToday
+                        ? DesignTokens.blue600
+                        : DesignTokens.slate600,
                   ),
                 ),
               ],

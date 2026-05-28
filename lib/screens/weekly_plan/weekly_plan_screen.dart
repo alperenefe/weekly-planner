@@ -8,6 +8,7 @@ import '../../config/planner_feature_flags.dart';
 import '../../data/db/app_database.dart';
 import '../../data/repositories/task_repository.dart';
 import '../../data/repositories/week_template_repository.dart';
+import '../../date/turkish_date.dart';
 import '../../date/week_calendar.dart';
 import '../../plan_data_revision.dart';
 import '../../plan_day_labels.dart';
@@ -696,7 +697,7 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           WeekNavigationBar(
-            label: 'Bu hafta: $_weekStart',
+            label: trWeekNavigationLabel(_weekStart),
             trailingAction: weekNavTrailing,
             onPrevious: () {
               unawaited(
@@ -823,14 +824,19 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                                     ? _poolTasksFiltered(featureFlags)
                                     : _dayTasksFiltered(featureFlags)[i - 1];
                                 final progress = _columnProgress(colTasks);
+                                final isTodayCol = _isTodayColumnTitle(i);
                                 return BoardColumn(
                                   title: kPlanDayLabels[i],
-                                  subtitle: null,
+                                  subtitle: isTodayCol && i > 0
+                                      ? trDayMonthShort(
+                                          parseIsoDate(dayIsos[i - 1]),
+                                        )
+                                      : null,
                                   badgeCount: colTasks.length,
                                   doneCount: progress.$1,
                                   taskCount: progress.$2,
                                   width: WeeklyPlanScreen.columnWidth,
-                                  titleHighlightToday: _isTodayColumnTitle(i),
+                                  titleHighlightToday: isTodayCol,
                                   subdued: i > 0 && colTasks.isEmpty,
                                   child: WeeklyPlanTaskColumn(
                                     tasks: colTasks,

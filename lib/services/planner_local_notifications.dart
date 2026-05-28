@@ -6,19 +6,29 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'focus_timer_notification_bridge.dart';
+
 class PlannerLocalNotifications {
   PlannerLocalNotifications();
 
   static const _focusChannelId = 'focus_timer';
   static const _focusChannelName = 'Odak süresi';
+  static const _focusAlarmChannelId = 'focus_timer_alarm';
+  static const _focusAlarmChannelName = 'Odak süresi bitti';
   static const _reminderChannelId = 'reminders';
   static const _reminderChannelName = 'Hatırlatıcılar';
+
+  static Int64List get _alarmVibrationPattern =>
+      Int64List.fromList([0, 420, 180, 420, 180, 420, 180, 420]);
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   bool _ready = false;
 
-  Future<void> init() async {
+  Future<void> init({
+    void Function(NotificationResponse)? onNotificationResponse,
+    void Function(NotificationResponse)? onBackgroundNotificationResponse,
+  }) async {
     if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) {
       return;
     }
@@ -37,6 +47,9 @@ class PlannerLocalNotifications {
           android: androidInit,
           iOS: iosInit,
         ),
+        onDidReceiveNotificationResponse: onNotificationResponse,
+        onDidReceiveBackgroundNotificationResponse:
+            onBackgroundNotificationResponse,
       );
       final android = _plugin
           .resolvePlatformSpecificImplementation<
@@ -45,7 +58,20 @@ class PlannerLocalNotifications {
         const AndroidNotificationChannel(
           _focusChannelId,
           _focusChannelName,
-          importance: Importance.high,
+          description: 'Odak süresi geri sayımı',
+          importance: Importance.low,
+          showBadge: false,
+        ),
+      );
+      await android?.createNotificationChannel(
+        AndroidNotificationChannel(
+          _focusAlarmChannelId,
+          _focusAlarmChannelName,
+          description: 'Süre dolduğunda titreşim ve uyarı',
+          importance: Importance.max,
+          enableVibration: true,
+          vibrationPattern: _alarmVibrationPattern,
+          playSound: true,
         ),
       );
       await android?.createNotificationChannel(
@@ -76,6 +102,79 @@ class PlannerLocalNotifications {
   static const int _notifIdDailySummary = 6_200_000;
 
   int _notifIdGoal(int goalId) => 6_300_000 + (goalId % 100_000);
+
+  int _notifIdFocusAlarm(int taskId) => 5_200_000 + (taskId % 100_000);
+
+  static String formatFocusRemaining(Duration remaining) {
+    final t = remaining.inSeconds.clamp(0, 86400);
+    final m = t ~/ 60;
+    final s = t % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')} kaldı';
+  }
+
+  NotificationDetails _focusRunningDetails({
+    required DateTime end,
+    required Duration remaining,
+  }) {
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        _focusChannelId,
+        _focusChannelName,
+        importance: Importance.low,
+        priority: Priority.low,
+        ongoing: true,
+        autoCancel: false,
+        onlyAlertOnce: true,
+        showWhen: false,
+        when: end.millisecondsSinceEpoch,
+        usesChronometer: true,
+        chronometerCountDown: true,
+        category: AndroidNotificationCategory.progress,
+        visibility: NotificationVisibility.public,
+      ),
+      iOS: const DarwinNotificationDetails(),
+    );
+  }
+
+  NotificationDetails _focusAlarmDetails({
+    required int taskId,
+    bool vibrate = true,
+  }) {
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        _focusAlarmChannelId,
+        _focusAlarmChannelName,
+        importance: Importance.max,
+        priority: Priority.max,
+        category: AndroidNotificationCategory.alarm,
+        fullScreenIntent: true,
+        visibility: NotificationVisibility.public,
+        enableVibration: vibrate,
+        vibrationPattern: vibrate ? _alarmVibrationPattern : null,
+        playSound: true,
+        ongoing: true,
+        autoCancel: false,
+        actions: <AndroidNotificationAction>[
+          AndroidNotificationAction(
+            FocusTimerNotifActions.ack,
+            'Sustur',
+            showsUserInterface: true,
+            cancelNotification: true,
+          ),
+          AndroidNotificationAction(
+            FocusTimerNotifActions.done,
+            'Tamamlandı',
+            showsUserInterface: true,
+            cancelNotification: true,
+          ),
+        ],
+      ),
+      iOS: const DarwinNotificationDetails(
+        presentAlert: true,
+        presentSound: true,
+      ),
+    );
+  }
 
   NotificationDetails get _reminderDetails => NotificationDetails(
         android: AndroidNotificationDetails(
@@ -255,6 +354,7 @@ class PlannerLocalNotifications {
     required DateTime end,
     required int taskId,
     required String title,
+    Duration? remaining,
   }) async {
     if (!_ready || taskId <= 0) {
       return;
@@ -262,26 +362,42 @@ class PlannerLocalNotifications {
     if (!Platform.isAndroid) {
       return;
     }
+    final rem = remaining ?? end.difference(DateTime.now());
+    final clamped = rem.isNegative ? Duration.zero : rem;
     try {
       await _plugin.show(
         id: _notifIdFocusOngoing(taskId),
         title: title.isEmpty ? 'Odak' : title,
-        body: 'Bitişe kadar geri sayım',
-        notificationDetails: NotificationDetails(
-          android: AndroidNotificationDetails(
-            _focusChannelId,
-            _focusChannelName,
-            importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-            ongoing: true,
-            autoCancel: false,
-            onlyAlertOnce: true,
-            showWhen: true,
-            when: end.millisecondsSinceEpoch,
-            usesChronometer: true,
-            chronometerCountDown: true,
-            category: AndroidNotificationCategory.progress,
-          ),
+        body: formatFocusRemaining(clamped),
+        payload: 'focus_running:$taskId',
+        notificationDetails: _focusRunningDetails(
+          end: end,
+          remaining: clamped,
+        ),
+      );
+    } on Object {
+      return;
+    }
+  }
+
+  Future<void> showFocusTimerAlarm({
+    required int taskId,
+    required String title,
+    bool vibrate = true,
+  }) async {
+    if (!_ready || taskId <= 0) {
+      return;
+    }
+    try {
+      await _plugin.cancel(id: _notifIdFocusOngoing(taskId));
+      await _plugin.show(
+        id: _notifIdFocusAlarm(taskId),
+        title: 'Süre doldu',
+        body: title.isEmpty ? 'Odak süresi bitti' : title,
+        payload: 'focus_alarm:$taskId',
+        notificationDetails: _focusAlarmDetails(
+          taskId: taskId,
+          vibrate: vibrate,
         ),
       );
     } on Object {
@@ -293,6 +409,7 @@ class PlannerLocalNotifications {
     required DateTime end,
     required int taskId,
     required String title,
+    bool vibrate = true,
   }) async {
     if (!_ready || taskId <= 0) {
       return;
@@ -307,16 +424,41 @@ class PlannerLocalNotifications {
         scheduledDate: when,
         notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
-            _focusChannelId,
-            _focusChannelName,
-            importance: Importance.high,
-            priority: Priority.high,
+            _focusAlarmChannelId,
+            _focusAlarmChannelName,
+            importance: Importance.max,
+            priority: Priority.max,
+            category: AndroidNotificationCategory.alarm,
+            fullScreenIntent: true,
+            enableVibration: vibrate,
+            vibrationPattern: vibrate ? _alarmVibrationPattern : null,
+            playSound: true,
+            ongoing: true,
+            autoCancel: false,
+            actions: <AndroidNotificationAction>[
+              AndroidNotificationAction(
+                FocusTimerNotifActions.ack,
+                'Sustur',
+                showsUserInterface: true,
+                cancelNotification: true,
+              ),
+              AndroidNotificationAction(
+                FocusTimerNotifActions.done,
+                'Tamamlandı',
+                showsUserInterface: true,
+                cancelNotification: true,
+              ),
+            ],
           ),
-          iOS: const DarwinNotificationDetails(),
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentSound: true,
+          ),
         ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         title: 'Süre doldu',
-        body: title.isEmpty ? 'Odak' : title,
+        body: title.isEmpty ? 'Odak süresi bitti' : title,
+        payload: 'focus_alarm:$taskId',
       );
     } on Object {
       return;
@@ -330,6 +472,7 @@ class PlannerLocalNotifications {
     try {
       await _plugin.cancel(id: _notifIdFocusScheduled(taskId));
       await _plugin.cancel(id: _notifIdFocusOngoing(taskId));
+      await _plugin.cancel(id: _notifIdFocusAlarm(taskId));
     } on Object {
       return;
     }

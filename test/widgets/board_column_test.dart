@@ -30,7 +30,8 @@ void main() {
     expect(find.text('inner'), findsOneWidget);
   });
 
-  testWidgets('BoardColumn titleHighlightToday uses blue400 underline', (tester) async {
+  testWidgets('BoardColumn titleHighlightToday uses blue dot and blue title',
+      (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -39,7 +40,7 @@ void main() {
               height: 200,
               child: BoardColumn(
                 title: 'Pzt',
-                subtitle: null,
+                subtitle: '19 May',
                 badgeCount: 0,
                 width: 200,
                 titleHighlightToday: true,
@@ -51,8 +52,10 @@ void main() {
       ),
     );
 
-    final title = tester.widget<Text>(find.byKey(const Key('board_col_title_Pzt')));
+    expect(find.byKey(const Key('board_col_today_dot_Pzt')), findsOneWidget);
+    final title =
+        tester.widget<Text>(find.byKey(const Key('board_col_title_Pzt')));
     expect(title.style?.color, DesignTokens.blue400);
-    expect(title.style?.decoration, TextDecoration.underline);
+    expect(title.style?.decoration, TextDecoration.none);
   });
 }

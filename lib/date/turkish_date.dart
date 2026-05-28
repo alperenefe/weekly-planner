@@ -63,6 +63,26 @@ String trShortDate(DateTime d) {
   return '${d.day} ${_trMonthsShort[d.month - 1]} ${d.year}';
 }
 
+/// Sütun alt satırı: "19 May"
+String trDayMonthShort(DateTime d) {
+  return '${d.day} ${_trMonthsShort[d.month - 1]}';
+}
+
+/// Plan / özet üst çubuğu: "19–25 Mayıs 2026"
+String trWeekNavigationLabel(String mondayIso) {
+  final mon = parseIsoDate(mondayIso);
+  final sun = mon.add(const Duration(days: 6));
+  if (mon.year == sun.year && mon.month == sun.month) {
+    return '${mon.day}–${sun.day} ${_trMonthsLong[sun.month - 1]} ${sun.year}';
+  }
+  if (mon.year == sun.year) {
+    return '${mon.day} ${_trMonthsShort[mon.month - 1]} – '
+        '${sun.day} ${_trMonthsLong[sun.month - 1]} ${sun.year}';
+  }
+  return '${mon.day} ${_trMonthsLong[mon.month - 1]} ${mon.year} – '
+      '${sun.day} ${_trMonthsLong[sun.month - 1]} ${sun.year}';
+}
+
 String trWeekRangeFromMonday(String mondayIso) {
   final mon = parseIsoDate(mondayIso);
   final sun = mon.add(const Duration(days: 6));

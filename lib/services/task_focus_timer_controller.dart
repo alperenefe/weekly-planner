@@ -8,7 +8,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vibration/vibration.dart';
 
 import '../data/db/app_database.dart';
+import '../data/repositories/task_repository.dart';
+import 'focus_timer_notification_bridge.dart';
 import 'planner_local_notifications.dart';
+import 'reminder_settings_store.dart';
 
 enum TaskFocusTimerPhase { idle, running, alarming }
 
@@ -19,9 +22,17 @@ class TaskFocusTimerController extends ChangeNotifier {
   static const _kRemainingMapKey = 'task_focus_remaining_seconds_map_v1';
 
   final PlannerLocalNotifications? _notifications;
+  final ReminderSettingsStore? _settings;
+  final TaskRepository? _taskRepo;
 
-  TaskFocusTimerController({PlannerLocalNotifications? notifications})
-      : _notifications = notifications {
+  TaskFocusTimerController({
+    PlannerLocalNotifications? notifications,
+    ReminderSettingsStore? settings,
+    TaskRepository? taskRepo,
+  })  : _notifications = notifications,
+        _settings = settings,
+        _taskRepo = taskRepo {
+    FocusTimerNotificationBridge.bind(this);
     unawaited(_restore());
   }
 
@@ -63,6 +74,35 @@ class TaskFocusTimerController extends ChangeNotifier {
     return d.isNegative ? Duration.zero : d;
   }
 
+  Future<void> processPendingNotificationAction() async {
+    final sp = await SharedPreferences.getInstance();
+    final raw = sp.getString(FocusTimerNotificationBridge.pendingActionKey);
+    if (raw == null || raw.isEmpty) return;
+    await sp.remove(FocusTimerNotificationBridge.pendingActionKey);
+    final parts = raw.split(':');
+    if (parts.isEmpty) return;
+    final action = parts.first;
+    final taskId = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+    if (action == 'done') {
+      final tid = taskId > 0 ? taskId : _taskId;
+      if (tid > 0) {
+        await _taskRepo?.markDone(tid);
+        await clearPersistedAndSilenceAfterDone(tid);
+        return;
+      }
+    }
+    if (_phase == TaskFocusTimerPhase.alarming ||
+        _taskId > 0 ||
+        taskId > 0) {
+      await acknowledgeAlarm();
+    }
+  }
+
+  Future<bool> _focusVibrationEnabled() async {
+    await _settings?.ensureLoaded();
+    return _settings?.focusVibrationEnabled ?? true;
+  }
+
   Future<void> start(Task task) async {
     final d = task.durationMinutes;
     if (d == null || d <= 0) return;
@@ -89,10 +129,12 @@ class TaskFocusTimerController extends ChangeNotifier {
     _phase = TaskFocusTimerPhase.running;
     await _persist();
     _startTicker();
+    final vibrate = await _focusVibrationEnabled();
     await _notifications?.scheduleFocusTimerEnd(
       end: _endsAt!,
       taskId: _taskId,
       title: _title,
+      vibrate: vibrate,
     );
     await _notifications?.showFocusTimerRunning(
       end: _endsAt!,
@@ -167,12 +209,15 @@ class TaskFocusTimerController extends ChangeNotifier {
     _remainingsHydratedFromDisk = false;
     _ticker?.cancel();
     _ticker = null;
-    _alarmPulse?.cancel();
-    _alarmPulse = null;
+    if (_phase != TaskFocusTimerPhase.alarming) {
+      _alarmPulse?.cancel();
+      _alarmPulse = null;
+    }
   }
 
   Future<void> onAppLifecycleResumed() async {
     await _ensureRemainingsLoaded();
+    await processPendingNotificationAction();
     final sp = await SharedPreferences.getInstance();
     final endsStr = sp.getString(_kEndsAtKey);
     if (endsStr == null) {
@@ -193,6 +238,7 @@ class TaskFocusTimerController extends ChangeNotifier {
 
   Future<void> _restore() async {
     await _ensureRemainingsLoaded();
+    await processPendingNotificationAction();
     final sp = await SharedPreferences.getInstance();
     final endsStr = sp.getString(_kEndsAtKey);
     if (endsStr == null) {
@@ -220,10 +266,12 @@ class TaskFocusTimerController extends ChangeNotifier {
     if (DateTime.now().isBefore(e)) {
       _phase = TaskFocusTimerPhase.running;
       _startTicker();
+      final vibrate = await _focusVibrationEnabled();
       await _notifications?.scheduleFocusTimerEnd(
         end: e,
         taskId: _taskId,
         title: _title,
+        vibrate: vibrate,
       );
       await _notifications?.showFocusTimerRunning(
         end: e,
@@ -233,7 +281,12 @@ class TaskFocusTimerController extends ChangeNotifier {
     } else {
       _phase = TaskFocusTimerPhase.alarming;
       _startAlarmPulse();
-      await _notifications?.cancelFocusTimer(_taskId);
+      final vibrate = await _focusVibrationEnabled();
+      await _notifications?.showFocusTimerAlarm(
+        taskId: _taskId,
+        title: _title,
+        vibrate: vibrate,
+      );
     }
     notifyListeners();
   }
@@ -327,17 +380,34 @@ class TaskFocusTimerController extends ChangeNotifier {
     if (!DateTime.now().isBefore(_endsAt!)) {
       _enterAlarming();
     } else {
+      final rem = remainingNow();
+      unawaited(
+        _notifications?.showFocusTimerRunning(
+          end: _endsAt!,
+          taskId: _taskId,
+          title: _title,
+          remaining: rem,
+        ),
+      );
       notifyListeners();
     }
   }
 
   void _enterAlarming() {
     final tid = _taskId;
+    final title = _title;
     _ticker?.cancel();
     _ticker = null;
     _phase = TaskFocusTimerPhase.alarming;
     _startAlarmPulse();
-    unawaited(_notifications?.cancelFocusTimer(tid));
+    unawaited(() async {
+      final vibrate = await _focusVibrationEnabled();
+      await _notifications?.showFocusTimerAlarm(
+        taskId: tid,
+        title: title,
+        vibrate: vibrate,
+      );
+    }());
     if (tid > 0) {
       unawaited(() async {
         await _ensureRemainingsLoaded();
@@ -349,6 +419,8 @@ class TaskFocusTimerController extends ChangeNotifier {
   }
 
   Future<void> _vibratePulse() async {
+    await _settings?.ensureLoaded();
+    if (_settings?.focusVibrationEnabled == false) return;
     try {
       final has = await Vibration.hasVibrator();
       if (has == true) {
@@ -387,6 +459,7 @@ class TaskFocusTimerController extends ChangeNotifier {
 
   @override
   void dispose() {
+    FocusTimerNotificationBridge.unbind(this);
     _ticker?.cancel();
     _stopAlarmPulse();
     super.dispose();

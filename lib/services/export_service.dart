@@ -57,7 +57,7 @@ class ExportService {
         : (summary.completionPercent.round());
 
     final buf = StringBuffer();
-    buf.writeln('Hafta: ${trWeekRangeFromMonday(weekStart)}');
+    buf.writeln('Hafta: ${trWeekNavigationLabel(weekStart)}');
     buf.writeln(
       'Tamamlanan: ${summary.completedMinutes} dk / ${summary.plannedMinutes} dk (%$pct)',
     );

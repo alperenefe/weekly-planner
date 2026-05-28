@@ -104,7 +104,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           WeekNavigationBar(
-            label: 'Bu hafta: $_weekStart',
+            label: trWeekNavigationLabel(_weekStart),
             onPrevious: () => _shiftWeek(-7),
             onNext: () => _shiftWeek(7),
           ),

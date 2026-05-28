@@ -111,18 +111,31 @@ class _HeroCard extends StatelessWidget {
 
   final WeekSummary summary;
 
+  int get _taskPercent {
+    if (summary.totalTasks == 0) return 0;
+    return (summary.completedTasks * 100 / summary.totalTasks).round();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final (headline, subtitle) = summaryHeroCopy(summary);
+    final taskPct = _taskPercent;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(20),
       child: Stack(
         children: [
           DecoratedBox(
             decoration: BoxDecoration(
-              color: DesignTokens.slate900,
-              borderRadius: BorderRadius.circular(12),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  DesignTokens.slate900,
+                  DesignTokens.slate800,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(color: DesignTokens.slate800),
               boxShadow: const [
                 BoxShadow(
@@ -133,73 +146,120 @@ class _HeroCard extends StatelessWidget {
               ],
             ),
             child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    headline,
-                    key: const Key('summary_hero_headline'),
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: DesignTokens.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    key: const Key('summary_hero_subtitle'),
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: DesignTokens.slate400,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'TAMAMLANAN SÜRE',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 2,
-                      fontSize: 12,
-                      height: 16 / 12,
-                      color: DesignTokens.slate400,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(
-                        _fmtInt(summary.completedMinutes),
-                        key: const Key('summary_completed_large'),
-                        style: theme.textTheme.displaySmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 30,
-                          height: 38 / 30,
-                          letterSpacing: -0.6,
-                          color: DesignTokens.white,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          headline,
+                          key: const Key('summary_hero_headline'),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: DesignTokens.white,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'dk',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: DesignTokens.slate400,
-                          fontSize: 14,
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          key: const Key('summary_hero_subtitle'),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: DesignTokens.slate400,
+                            height: 1.4,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 16),
+                        Text(
+                          'TAMAMLANAN SÜRE',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 2,
+                            fontSize: 12,
+                            height: 16 / 12,
+                            color: DesignTokens.slate400,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              _fmtInt(summary.completedMinutes),
+                              key: const Key('summary_completed_large'),
+                              style: theme.textTheme.displaySmall?.copyWith(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 30,
+                                height: 38 / 30,
+                                letterSpacing: -0.6,
+                                color: DesignTokens.white,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'dk',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: DesignTokens.slate400,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Havuzda ${summary.poolMinutes} dk',
+                          key: const Key('summary_pool_line'),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: DesignTokens.blue400,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Havuzda ${summary.poolMinutes} dk',
-                    key: const Key('summary_pool_line'),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: DesignTokens.blue400,
-                      fontSize: 14,
+                  const SizedBox(width: 16),
+                  SizedBox(
+                    width: 96,
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          width: 88,
+                          height: 88,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              CircularProgressIndicator(
+                                value: taskPct / 100,
+                                strokeWidth: 6,
+                                backgroundColor: DesignTokens.slate800,
+                                color: DesignTokens.blue500,
+                              ),
+                              Text(
+                                '%$taskPct',
+                                key: const Key('summary_hero_task_pct'),
+                                style: theme.textTheme.headlineMedium?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 28,
+                                  height: 1,
+                                  color: DesignTokens.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'görev',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: DesignTokens.slate400,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -210,7 +270,7 @@ class _HeroCard extends StatelessWidget {
             child: IgnorePointer(
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(20),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
