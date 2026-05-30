@@ -78,7 +78,7 @@ class PlannerLocalNotifications {
         const AndroidNotificationChannel(
           _reminderChannelId,
           _reminderChannelName,
-          description: 'Günlük özet ve etkinlik hatırlatmaları',
+          description: 'Günlük özet ve hedef hatırlatmaları',
           importance: Importance.defaultImportance,
         ),
       );

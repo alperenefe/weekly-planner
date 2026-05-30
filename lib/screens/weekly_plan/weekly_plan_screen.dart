@@ -209,7 +209,7 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
           ),
           child: AddTaskSheet(
             onSubmit: (title, duration, notes, dayIndices, startMinutes,
-                accentArgb, reminderEnabled, reminderMinutes) async {
+                accentArgb) async {
               final repo = context.read<TaskRepository>();
               for (final dayIndex in dayIndices) {
                 final plannedIso =
@@ -234,10 +234,6 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                     originalPlannedDate: plannedIso == null
                         ? const Value.absent()
                         : Value(plannedIso),
-                    reminderEnabled: Value(reminderEnabled ? 1 : 0),
-                    reminderMinutes: reminderEnabled && reminderMinutes != null
-                        ? Value(reminderMinutes)
-                        : const Value.absent(),
                     createdAt: now,
                     updatedAt: now,
                   ),
@@ -363,8 +359,7 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                 : null,
             onSubmit:
                 (title, durationMinutes, notes, int dayIndex, int? startMinutes,
-                    int? accentColorArgb, bool reminderEnabled,
-                    int? reminderMinutes) async {
+                    int? accentColorArgb) async {
               final repo = context.read<TaskRepository>();
               final newPlanned = plannedDateForChipIndex(_weekStart, dayIndex);
               MoveTaskOutcome? moveOut;
@@ -381,10 +376,8 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                   startMinutes: Value(startMinutes),
                   notes: Value(notes),
                   accentColor: Value(accentColorArgb),
-                  reminderEnabled: reminderEnabled ? 1 : 0,
-                  reminderMinutes: reminderEnabled && reminderMinutes != null
-                      ? Value(reminderMinutes)
-                      : const Value(null),
+                  reminderEnabled: 0,
+                  reminderMinutes: const Value(null),
                   updatedAt: now,
                 ),
               );

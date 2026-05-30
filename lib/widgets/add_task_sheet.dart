@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import '../date/week_calendar.dart';
 import '../plan_day_labels.dart';
 import '../theme/design_tokens.dart';
-import 'task_reminder_row.dart';
+import 'planner_dialogs.dart';
 
 typedef AddTaskSubmit = Future<void> Function(
   String title,
@@ -13,8 +13,6 @@ typedef AddTaskSubmit = Future<void> Function(
   List<int> dayIndices,
   int? startMinutes,
   int? accentColorArgb,
-  bool reminderEnabled,
-  int? reminderMinutes,
 );
 
 class AddTaskSheet extends StatefulWidget {
@@ -30,26 +28,44 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   final _titleController = TextEditingController();
   final _durationController = TextEditingController();
   final _notesController = TextEditingController();
+  final _scrollController = ScrollController();
+  final _titleFocusNode = FocusNode();
+  final _titleFieldKey = GlobalKey();
   final Set<int> _selectedDayIndices = {0};
   bool _saving = false;
+  bool _titleError = false;
   bool _useStartTime = false;
   int _startMinutes = startMinutesFromQuarterIndex(36);
   int? _accentArgb;
-  bool _reminderEnabled = false;
-  int _reminderMinutes = 9 * 60;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController.addListener(_onTitleChanged);
+  }
+
+  void _onTitleChanged() {
+    if (_titleError && _titleController.text.trim().isNotEmpty) {
+      setState(() => _titleError = false);
+    }
+  }
 
   @override
   void dispose() {
+    _titleController.removeListener(_onTitleChanged);
+    _scrollController.dispose();
+    _titleFocusNode.dispose();
     _titleController.dispose();
     _durationController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
-  InputDecoration _fieldDec(String label, {String? hint}) {
+  InputDecoration _fieldDec(String label, {String? hint, String? errorText}) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
+      errorText: errorText,
       labelStyle: const TextStyle(
         color: DesignTokens.slate400,
         fontWeight: FontWeight.w700,
@@ -69,14 +85,48 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: DesignTokens.blue500, width: 1.5),
+        borderSide: BorderSide(
+          color: errorText != null
+              ? PlannerDialogs.deleteRed
+              : DesignTokens.blue500,
+          width: 1.5,
+        ),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: PlannerDialogs.deleteRed),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: PlannerDialogs.deleteRed, width: 1.5),
       ),
     );
   }
 
+  Future<void> _revealTitleField() async {
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return;
+    final fieldContext = _titleFieldKey.currentContext;
+    if (fieldContext != null) {
+      await Scrollable.ensureVisible(
+        fieldContext,
+        alignment: 0.08,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+    }
+    _titleFocusNode.requestFocus();
+  }
+
   Future<void> _onSavePressed() async {
     final title = _titleController.text.trim();
-    if (title.isEmpty || _saving) return;
+    if (title.isEmpty) {
+      setState(() => _titleError = true);
+      showPlannerErrorSnackBar(context, 'Başlık girmelisin');
+      await _revealTitleField();
+      return;
+    }
+    if (_saving) return;
     setState(() => _saving = true);
     try {
       int? duration;
@@ -94,8 +144,6 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         indices,
         startMinutes,
         _accentArgb,
-        _reminderEnabled,
-        _reminderEnabled ? _reminderMinutes : null,
       );
     } finally {
       if (mounted) {
@@ -143,34 +191,6 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     });
   }
 
-  Future<void> _pickReminderTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(
-        hour: _reminderMinutes ~/ 60,
-        minute: _reminderMinutes % 60,
-      ),
-      builder: (ctx, child) {
-        return Theme(
-          data: Theme.of(ctx).copyWith(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: DesignTokens.blue500,
-              brightness: Brightness.dark,
-            ).copyWith(surface: DesignTokens.slate900),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (!mounted || picked == null) return;
-    setState(() {
-      _reminderMinutes = snappedStartMinutesFromWallClock(
-        hour: picked.hour,
-        minute: picked.minute,
-      );
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -179,6 +199,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       color: DesignTokens.slate950,
       child: SafeArea(
         child: SingleChildScrollView(
+          controller: _scrollController,
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -206,16 +227,25 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      TextField(
-                        key: const Key('add_task_title'),
-                        controller: _titleController,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: DesignTokens.white,
-                          fontWeight: FontWeight.w600,
+                      Container(
+                        key: _titleFieldKey,
+                        child: TextField(
+                          key: const Key('add_task_title'),
+                          controller: _titleController,
+                          focusNode: _titleFocusNode,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: DesignTokens.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          cursorColor: DesignTokens.blue400,
+                          decoration: _fieldDec(
+                            'Başlık',
+                            hint: 'Etkinlik adını girin...',
+                            errorText:
+                                _titleError ? 'Başlık girmelisin' : null,
+                          ),
+                          textInputAction: TextInputAction.next,
                         ),
-                        cursorColor: DesignTokens.blue400,
-                        decoration: _fieldDec('Başlık', hint: 'Etkinlik adını girin...'),
-                        textInputAction: TextInputAction.next,
                       ),
                       const SizedBox(height: 16),
                       TextField(
@@ -295,14 +325,6 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                           ),
                         ),
                       ],
-                      const SizedBox(height: 12),
-                      TaskReminderRow(
-                        enabled: _reminderEnabled,
-                        minutesOfDay: _reminderMinutes,
-                        onEnabledChanged: (v) =>
-                            setState(() => _reminderEnabled = v),
-                        onPickTime: _pickReminderTime,
-                      ),
                       const SizedBox(height: 20),
                       Text(
                         'Hedef günler',

@@ -66,32 +66,31 @@ class ReminderSchedulerService {
 
   Future<void> _syncAllImpl() async {
     await _settings.ensureLoaded();
-    final taskIds = await _taskRepo.getTaskIdsWithReminderFlag();
     final goalIds = await _goalRepo.getGoalIdsWithReminderFlag();
+    await _clearLegacyTaskReminders();
     if (!_settings.remindersEnabled) {
       await _notifications.cancelAllReminders(
-        taskIds: taskIds,
+        taskIds: const [],
         goalIds: goalIds,
       );
       return;
     }
     await _notifications.cancelAllReminders(
-      taskIds: taskIds,
+      taskIds: const [],
       goalIds: goalIds,
     );
-    for (final id in taskIds) {
-      await _notifications.cancelTaskReminder(id);
-    }
     for (final id in goalIds) {
       await _notifications.cancelMonthlyGoalReminder(id);
     }
     await _syncDailySummary();
-    await _syncTaskReminders();
     await _syncMonthlyGoalReminders();
   }
 
-  Future<void> cancelTaskReminders(int taskId) async {
-    await _notifications.cancelTaskReminder(taskId);
+  Future<void> _clearLegacyTaskReminders() async {
+    final taskIds = await _taskRepo.clearAllTaskReminderFlags();
+    for (final id in taskIds) {
+      await _notifications.cancelTaskReminder(id);
+    }
   }
 
   Future<void> _syncDailySummary() async {
@@ -122,9 +121,7 @@ class ReminderSchedulerService {
     for (final t in planned.take(8)) {
       final time = t.startMinutes != null
           ? formatClockMinutes(t.startMinutes!)
-          : (t.reminderMinutes != null
-              ? formatClockMinutes(t.reminderMinutes!)
-              : null);
+          : null;
       final prefix = time != null ? '$time — ' : '';
       lines.add('$prefix${t.title}');
     }
@@ -132,43 +129,6 @@ class ReminderSchedulerService {
       lines.add('… ve ${planned.length - 8} etkinlik daha');
     }
     return lines.join('\n');
-  }
-
-  Future<void> _syncTaskReminders() async {
-    final tasks = await _taskRepo.getTasksWithActiveReminders();
-    final now = DateTime.now();
-    for (final t in tasks) {
-      final mins = t.reminderMinutes;
-      if (mins == null || t.reminderEnabled != 1) continue;
-      DateTime? fireLocal;
-      if (t.plannedDate != null && t.plannedDate!.isNotEmpty) {
-        if (!isPlannedDateInWeek(t.weekStart, t.plannedDate)) continue;
-        fireLocal = DateTime(
-          parseIsoDate(t.plannedDate!).year,
-          parseIsoDate(t.plannedDate!).month,
-          parseIsoDate(t.plannedDate!).day,
-          mins ~/ 60,
-          mins % 60,
-        );
-      } else {
-        fireLocal = DateTime(
-          now.year,
-          now.month,
-          now.day,
-          mins ~/ 60,
-          mins % 60,
-        );
-      }
-      if (!fireLocal.isAfter(now)) continue;
-      await _notifications.scheduleTaskReminder(
-        taskId: t.id,
-        when: fireLocal,
-        title: t.title,
-        body: t.plannedDate == null
-            ? 'Havuz — hatırlatma'
-            : 'Bugün — ${formatClockMinutes(mins)}',
-      );
-    }
   }
 
   Future<void> _syncMonthlyGoalReminders() async {

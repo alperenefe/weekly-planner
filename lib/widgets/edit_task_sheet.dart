@@ -11,7 +11,6 @@ import '../plan_day_labels.dart';
 import '../services/task_focus_timer_controller.dart';
 import '../theme/design_tokens.dart';
 import 'planner_dialogs.dart';
-import 'task_reminder_row.dart';
 
 part 'edit_task_sheet_body.dart';
 
@@ -22,8 +21,6 @@ typedef EditTaskSubmit = Future<void> Function(
   int dayIndex,
   int? startMinutes,
   int? accentColorArgb,
-  bool reminderEnabled,
-  int? reminderMinutes,
 );
 
 typedef EditTaskDeletePressed = Future<void> Function();
@@ -62,14 +59,16 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
   late final TextEditingController titleController;
   late final TextEditingController durationController;
   late final TextEditingController notesController;
+  final scrollController = ScrollController();
+  final titleFocusNode = FocusNode();
+  final titleFieldKey = GlobalKey();
   late int selectedDayIndex;
   bool saving = false;
+  bool titleError = false;
   late bool useStartTime;
   late int startMinutes;
   int? accentArgb;
   bool _didPreloadFocusBudget = false;
-  late bool reminderEnabled;
-  late int reminderMinutes;
 
   @override
   void initState() {
@@ -78,6 +77,7 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
     selectedDayIndex = d < 0 || d > 7 ? 0 : d;
     accentArgb = widget.initialAccentColor ?? widget.taskEntity?.accentColor;
     titleController = TextEditingController(text: widget.initialTitle);
+    titleController.addListener(onTitleChanged);
     durationController = TextEditingController(
       text: widget.initialDurationMinutes?.toString() ?? '',
     );
@@ -88,9 +88,12 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
     startMinutes = startMinutesFromQuarterIndex(
       quarterIndexFromStartMinutes(sm),
     );
-    final te = widget.taskEntity;
-    reminderEnabled = te != null && te.reminderEnabled == 1;
-    reminderMinutes = te?.reminderMinutes ?? 9 * 60;
+  }
+
+  void onTitleChanged() {
+    if (titleError && titleController.text.trim().isNotEmpty) {
+      setState(() => titleError = false);
+    }
   }
 
   void onFormFieldsChanged() {
@@ -103,10 +106,6 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
 
   void setSelectedDayIndex(int index) {
     setState(() => selectedDayIndex = index);
-  }
-
-  void setReminderEnabled(bool value) {
-    setState(() => reminderEnabled = value);
   }
 
   void setAccentArgb(int? value) {
@@ -127,16 +126,40 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
 
   @override
   void dispose() {
+    titleController.removeListener(onTitleChanged);
     durationController.removeListener(onFormFieldsChanged);
+    scrollController.dispose();
+    titleFocusNode.dispose();
     titleController.dispose();
     durationController.dispose();
     notesController.dispose();
     super.dispose();
   }
 
+  Future<void> revealTitleField() async {
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return;
+    final fieldContext = titleFieldKey.currentContext;
+    if (fieldContext != null) {
+      await Scrollable.ensureVisible(
+        fieldContext,
+        alignment: 0.08,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+    }
+    titleFocusNode.requestFocus();
+  }
+
   Future<void> onSavePressed() async {
     final title = titleController.text.trim();
-    if (title.isEmpty || saving) return;
+    if (title.isEmpty) {
+      setState(() => titleError = true);
+      showPlannerErrorSnackBar(context, 'Başlık girmelisin');
+      await revealTitleField();
+      return;
+    }
+    if (saving) return;
     setState(() => saving = true);
     try {
       int? duration;
@@ -153,8 +176,6 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
         selectedDayIndex,
         start,
         accentArgb,
-        reminderEnabled,
-        reminderEnabled ? reminderMinutes : null,
       );
     } finally {
       if (mounted) {
@@ -183,34 +204,6 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
     if (mounted) {
       Navigator.of(context).maybePop();
     }
-  }
-
-  Future<void> pickReminderTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(
-        hour: reminderMinutes ~/ 60,
-        minute: reminderMinutes % 60,
-      ),
-      builder: (ctx, child) {
-        return Theme(
-          data: Theme.of(ctx).copyWith(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: DesignTokens.blue500,
-              brightness: Brightness.dark,
-            ).copyWith(surface: DesignTokens.slate900),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (!mounted || picked == null) return;
-    setState(() {
-      reminderMinutes = snappedStartMinutesFromWallClock(
-        hour: picked.hour,
-        minute: picked.minute,
-      );
-    });
   }
 
   Future<void> pickStartTime() async {

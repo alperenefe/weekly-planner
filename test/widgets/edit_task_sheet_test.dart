@@ -29,9 +29,9 @@ void main() {
             initialDayIndex: 1,
             initialStartMinutes: null,
             onSubmit: (title, durationMinutes, notes, dayIndex, startMinutes,
-                accentColorArgb, reminderEnabled, reminderMinutes) async {
+                accentColorArgb) async {
               Object.hash(title, durationMinutes, notes, dayIndex, startMinutes,
-                  accentColorArgb, reminderEnabled, reminderMinutes);
+                  accentColorArgb);
             },
             onDeletePressed: () async {
               deleteCalls++;
@@ -81,8 +81,8 @@ void main() {
               initialDayIndex: 0,
               initialStartMinutes: null,
               taskEntity: task,
-              onSubmit: (a, b, c, d, e, f, g, h) async {
-                Object.hash(a, b, c, d, e, f, g, h);
+              onSubmit: (a, b, c, d, e, f) async {
+                Object.hash(a, b, c, d, e, f);
               },
               onStartFocus: (draft) async {
                 await focus.start(draft);

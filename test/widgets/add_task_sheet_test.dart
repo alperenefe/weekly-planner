@@ -8,7 +8,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: AddTaskSheet(
-            onSubmit: (_, __, ___, ____, _____, ______, _______, ________) async {},
+            onSubmit: (_, __, ___, ____, _____, ______) async {},
           ),
         ),
       ),
@@ -21,6 +21,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.byKey(const Key('add_task_sheet')), findsOneWidget);
-    expect(find.text('Başlık girmelisin'), findsNothing);
+    expect(find.text('Başlık girmelisin'), findsWidgets);
   });
 }

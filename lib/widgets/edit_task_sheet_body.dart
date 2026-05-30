@@ -7,10 +7,11 @@ class _EditTaskSheetBody extends StatelessWidget {
 
   EditTaskSheet get sheet => state.widget;
 
-  InputDecoration fieldDec(String label, {String? hint}) {
+  InputDecoration fieldDec(String label, {String? hint, String? errorText}) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
+      errorText: errorText,
       labelStyle: const TextStyle(
         color: DesignTokens.slate400,
         fontWeight: FontWeight.w700,
@@ -30,7 +31,20 @@ class _EditTaskSheetBody extends StatelessWidget {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: DesignTokens.blue500, width: 1.5),
+        borderSide: BorderSide(
+          color: errorText != null
+              ? PlannerDialogs.deleteRed
+              : DesignTokens.blue500,
+          width: 1.5,
+        ),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: PlannerDialogs.deleteRed),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: PlannerDialogs.deleteRed, width: 1.5),
       ),
     );
   }
@@ -43,6 +57,7 @@ class _EditTaskSheetBody extends StatelessWidget {
       color: DesignTokens.slate950,
       child: SafeArea(
         child: SingleChildScrollView(
+          controller: state.scrollController,
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -70,19 +85,26 @@ class _EditTaskSheetBody extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      TextField(
-                        key: const Key('edit_task_title'),
-                        controller: state.titleController,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: DesignTokens.white,
-                          fontWeight: FontWeight.w600,
+                      Container(
+                        key: state.titleFieldKey,
+                        child: TextField(
+                          key: const Key('edit_task_title'),
+                          controller: state.titleController,
+                          focusNode: state.titleFocusNode,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: DesignTokens.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          cursorColor: DesignTokens.blue400,
+                          decoration: fieldDec(
+                            'Başlık',
+                            hint: 'Etkinlik adını girin...',
+                            errorText: state.titleError
+                                ? 'Başlık girmelisin'
+                                : null,
+                          ),
+                          textInputAction: TextInputAction.next,
                         ),
-                        cursorColor: DesignTokens.blue400,
-                        decoration: fieldDec(
-                          'Başlık',
-                          hint: 'Etkinlik adını girin...',
-                        ),
-                        textInputAction: TextInputAction.next,
                       ),
                       const SizedBox(height: 16),
                       TextField(
@@ -209,13 +231,6 @@ class _EditTaskSheetBody extends StatelessWidget {
                           ),
                         ),
                       ],
-                      const SizedBox(height: 12),
-                      TaskReminderRow(
-                        enabled: state.reminderEnabled,
-                        minutesOfDay: state.reminderMinutes,
-                        onEnabledChanged: state.setReminderEnabled,
-                        onPickTime: state.pickReminderTime,
-                      ),
                       const SizedBox(height: 20),
                       Text(
                         'Gün',
