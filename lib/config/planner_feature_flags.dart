@@ -10,6 +10,7 @@ class PlannerFeatureFlags {
     this.monthlyGoalsEnabled = true,
     this.recurringTemplatesEnabled = true,
     this.weekTemplatesEnabled = true,
+    this.periodicRemindersTabEnabled = true,
   });
 
   final bool copyLastWeekEnabled;
@@ -20,6 +21,7 @@ class PlannerFeatureFlags {
   final bool monthlyGoalsEnabled;
   final bool recurringTemplatesEnabled;
   final bool weekTemplatesEnabled;
+  final bool periodicRemindersTabEnabled;
 
   PlannerFeatureFlags copyWith({
     bool? copyLastWeekEnabled,
@@ -30,6 +32,7 @@ class PlannerFeatureFlags {
     bool? monthlyGoalsEnabled,
     bool? recurringTemplatesEnabled,
     bool? weekTemplatesEnabled,
+    bool? periodicRemindersTabEnabled,
   }) {
     return PlannerFeatureFlags(
       copyLastWeekEnabled: copyLastWeekEnabled ?? this.copyLastWeekEnabled,
@@ -47,6 +50,8 @@ class PlannerFeatureFlags {
           recurringTemplatesEnabled ?? this.recurringTemplatesEnabled,
       weekTemplatesEnabled:
           weekTemplatesEnabled ?? this.weekTemplatesEnabled,
+      periodicRemindersTabEnabled:
+          periodicRemindersTabEnabled ?? this.periodicRemindersTabEnabled,
     );
   }
 
@@ -60,7 +65,8 @@ class PlannerFeatureFlags {
         other.planBoardSearchEnabled == planBoardSearchEnabled &&
         other.monthlyGoalsEnabled == monthlyGoalsEnabled &&
         other.recurringTemplatesEnabled == recurringTemplatesEnabled &&
-        other.weekTemplatesEnabled == weekTemplatesEnabled;
+        other.weekTemplatesEnabled == weekTemplatesEnabled &&
+        other.periodicRemindersTabEnabled == periodicRemindersTabEnabled;
   }
 
   @override
@@ -73,6 +79,7 @@ class PlannerFeatureFlags {
         monthlyGoalsEnabled,
         recurringTemplatesEnabled,
         weekTemplatesEnabled,
+        periodicRemindersTabEnabled,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -84,6 +91,7 @@ class PlannerFeatureFlags {
         'monthlyGoalsEnabled': monthlyGoalsEnabled,
         'recurringTemplatesEnabled': recurringTemplatesEnabled,
         'weekTemplatesEnabled': weekTemplatesEnabled,
+        'periodicRemindersTabEnabled': periodicRemindersTabEnabled,
       };
 
   static PlannerFeatureFlags fromJson(Map<String, dynamic>? json) {
@@ -103,6 +111,8 @@ class PlannerFeatureFlags {
       recurringTemplatesEnabled:
           (json['recurringTemplatesEnabled'] as bool?) ?? true,
       weekTemplatesEnabled: (json['weekTemplatesEnabled'] as bool?) ?? true,
+      periodicRemindersTabEnabled:
+          (json['periodicRemindersTabEnabled'] as bool?) ?? true,
     );
   }
 

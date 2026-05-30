@@ -48,23 +48,23 @@ class TaskRepository {
         .get();
   }
 
-  /// `week_start` bu hafta ama `planned_date` bu haftanın günlerinde değil (görünmez kalmasın diye havuzda gösterilir).
-  Future<List<Task>> getTasksWithActiveReminders() {
-    return (_db.select(_db.tasks)
-          ..where(
-            (t) =>
-                t.reminderEnabled.equals(1) & t.status.equals('planned'),
-          ))
-        .get();
-  }
-
-  Future<List<int>> getTaskIdsWithReminderFlag() async {
+  Future<List<int>> clearAllTaskReminderFlags() async {
     final rows = await (_db.select(_db.tasks)
           ..where((t) => t.reminderEnabled.equals(1)))
         .get();
+    if (rows.isEmpty) return [];
+    await (_db.update(_db.tasks)
+          ..where((t) => t.reminderEnabled.equals(1)))
+        .write(
+      const TasksCompanion(
+        reminderEnabled: Value(0),
+        reminderMinutes: Value(null),
+      ),
+    );
     return rows.map((t) => t.id).toList();
   }
 
+  /// `week_start` bu hafta ama `planned_date` bu haftanın günlerinde değil (görünmez kalmasın diye havuzda gösterilir).
   Future<List<Task>> getOrphanPlannedTasks(String weekStart) async {
     final allowed = weekdayIsosFromMonday(weekStart).toSet();
     final rows = await (_db.select(_db.tasks)
@@ -340,6 +340,7 @@ class TaskRepository {
       await _db.delete(_db.weekMetas).go();
       await _db.delete(_db.recurringTemplates).go();
       await _db.customStatement('DELETE FROM monthly_goals');
+      await _db.customStatement('DELETE FROM periodic_reminders');
       await _db.customStatement('DELETE FROM week_template_tasks');
       await _db.customStatement('DELETE FROM week_templates');
     });

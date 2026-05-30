@@ -18,7 +18,8 @@ class PlannerBottomNav extends StatelessWidget {
   static const int branchSummary = 1;
   static const int branchHistory = 2;
   static const int branchGoals = 3;
-  static const int branchSettings = 4;
+  static const int branchReminders = 4;
+  static const int branchSettings = 5;
 
   @override
   Widget build(BuildContext context) {

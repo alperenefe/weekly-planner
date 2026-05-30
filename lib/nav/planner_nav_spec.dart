@@ -132,9 +132,31 @@ PlannerNavSpec buildPlannerNavSpec(PlannerFeatureFlags flags) {
 
   }
 
+  if (flags.periodicRemindersTabEnabled) {
+
+    items.add((
+
+      branch: 4,
+
+      dest: const NavigationDestination(
+
+        key: Key('nav_reminders'),
+
+        icon: Icon(Icons.event_repeat_outlined),
+
+        selectedIcon: Icon(Icons.event_repeat),
+
+        label: 'Hatırlatıcılar',
+
+      ),
+
+    ));
+
+  }
+
   items.add((
 
-    branch: 4,
+    branch: 5,
 
     dest: const NavigationDestination(
 

@@ -362,6 +362,33 @@ class _SettingsScrollBody extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 SwitchListTile(
+                  key: const Key('settings_feature_periodic_reminders_tab'),
+                  tileColor: DesignTokens.slate900.withValues(alpha: 0.6),
+                  shape: tileShape,
+                  title: Text(
+                    'Hatırlatıcılar sekmesi',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: DesignTokens.slate200,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Periyodik işler (perde, havlu vb.)',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: DesignTokens.slate400,
+                    ),
+                  ),
+                  value: f.periodicRemindersTabEnabled,
+                  onChanged: (v) {
+                    unawaited(
+                      store.setFlags(
+                        f.copyWith(periodicRemindersTabEnabled: v),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile(
                   key: const Key('settings_feature_week_templates'),
                   tileColor: DesignTokens.slate900.withValues(alpha: 0.6),
                   shape: tileShape,
@@ -460,7 +487,7 @@ class _SettingsScrollBody extends StatelessWidget {
                     ),
                   ),
                   subtitle: Text(
-                    'Kapalıyken günlük özet ve etkinlik bildirimleri gönderilmez',
+                    'Kapalıyken günlük özet ve hedef hatırlatmaları gönderilmez',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: DesignTokens.slate400,
                     ),

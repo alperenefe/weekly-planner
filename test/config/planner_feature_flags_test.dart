@@ -12,6 +12,7 @@ void main() {
       monthlyGoalsEnabled: false,
       recurringTemplatesEnabled: false,
       weekTemplatesEnabled: false,
+      periodicRemindersTabEnabled: false,
     );
     final decoded = PlannerFeatureFlags.fromJson(original.toJson());
     expect(decoded.copyLastWeekEnabled, false);
@@ -22,6 +23,7 @@ void main() {
     expect(decoded.monthlyGoalsEnabled, false);
     expect(decoded.recurringTemplatesEnabled, false);
     expect(decoded.weekTemplatesEnabled, false);
+    expect(decoded.periodicRemindersTabEnabled, false);
   });
 
   test('fromJson eksik anahtarlar true varsayar', () {
@@ -35,6 +37,7 @@ void main() {
     expect(decoded.monthlyGoalsEnabled, true);
     expect(decoded.recurringTemplatesEnabled, true);
     expect(decoded.weekTemplatesEnabled, true);
+    expect(decoded.periodicRemindersTabEnabled, true);
   });
 
   test('tryParseStored invalid returns null', () {

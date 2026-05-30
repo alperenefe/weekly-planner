@@ -113,7 +113,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -152,6 +152,7 @@ class AppDatabase extends _$AppDatabase {
             ')',
           );
           await _createTaskIndexes(m);
+          await _createPeriodicRemindersTable(m);
         },
         onUpgrade: (Migrator m, int from, int to) async {
           if (from < 2) {
@@ -216,8 +217,26 @@ class AppDatabase extends _$AppDatabase {
               'ALTER TABLE monthly_goals ADD COLUMN reminder_minutes INTEGER',
             );
           }
+          if (from < 10) {
+            await _createPeriodicRemindersTable(m);
+          }
         },
       );
+
+  static Future<void> _createPeriodicRemindersTable(Migrator m) async {
+    await m.database.customStatement(
+      'CREATE TABLE IF NOT EXISTS periodic_reminders ('
+      'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+      'title TEXT NOT NULL, '
+      'interval_days INTEGER NOT NULL, '
+      'next_due_date TEXT NOT NULL, '
+      'last_completed_at TEXT, '
+      'order_index INTEGER NOT NULL, '
+      'created_at TEXT NOT NULL, '
+      'updated_at TEXT NOT NULL'
+      ')',
+    );
+  }
 
   static Future<void> _createTaskIndexes(Migrator m) async {
     await m.database.customStatement(
