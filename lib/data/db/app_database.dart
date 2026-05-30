@@ -113,7 +113,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -153,6 +153,7 @@ class AppDatabase extends _$AppDatabase {
           );
           await _createTaskIndexes(m);
           await _createPeriodicRemindersTable(m);
+          await _createPeriodicReminderCompletionsTable(m);
         },
         onUpgrade: (Migrator m, int from, int to) async {
           if (from < 2) {
@@ -220,6 +221,10 @@ class AppDatabase extends _$AppDatabase {
           if (from < 10) {
             await _createPeriodicRemindersTable(m);
           }
+          if (from < 11) {
+            await _createPeriodicReminderCompletionsTable(m);
+            await _backfillPeriodicReminderCompletions(m);
+          }
         },
       );
 
@@ -235,6 +240,31 @@ class AppDatabase extends _$AppDatabase {
       'created_at TEXT NOT NULL, '
       'updated_at TEXT NOT NULL'
       ')',
+    );
+  }
+
+  static Future<void> _createPeriodicReminderCompletionsTable(Migrator m) async {
+    await m.database.customStatement(
+      'CREATE TABLE IF NOT EXISTS periodic_reminder_completions ('
+      'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+      'reminder_id INTEGER NOT NULL, '
+      'completed_at TEXT NOT NULL, '
+      'previous_next_due_date TEXT, '
+      'FOREIGN KEY (reminder_id) REFERENCES periodic_reminders(id) ON DELETE CASCADE'
+      ')',
+    );
+    await m.database.customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_prc_reminder_id '
+      'ON periodic_reminder_completions(reminder_id, completed_at DESC)',
+    );
+  }
+
+  static Future<void> _backfillPeriodicReminderCompletions(Migrator m) async {
+    await m.database.customStatement(
+      'INSERT INTO periodic_reminder_completions '
+      '(reminder_id, completed_at, previous_next_due_date) '
+      'SELECT id, last_completed_at, NULL FROM periodic_reminders '
+      'WHERE last_completed_at IS NOT NULL',
     );
   }
 

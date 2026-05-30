@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:weekly_planner/date/periodic_reminder_dates.dart';
+import 'package:weekly_planner/date/turkish_date.dart';
 import 'package:weekly_planner/date/week_calendar.dart';
 
 void main() {
@@ -44,6 +45,12 @@ void main() {
     test('formatIntervalLabel preset and custom', () {
       expect(formatIntervalLabel(14), '2 hafta');
       expect(formatIntervalLabel(45), '45 gün');
+    });
+
+    test('formatLastCompletedLabel', () {
+      final iso = DateTime(2026, 5, 28, 14, 30).toUtc().toIso8601String();
+      expect(formatLastCompletedLabel(iso), trShortDate(DateTime(2026, 5, 28)));
+      expect(formatLastCompletedLabel(null), isNull);
     });
   });
 }

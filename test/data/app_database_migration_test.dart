@@ -58,7 +58,7 @@ Future<bool> _indexExists(GeneratedDatabase db, String name) async {
 }
 
 void main() {
-  test('legacy v1 database migrates to schema v10 with data preserved', () async {
+  test('legacy v1 database migrates to schema v11 with data preserved', () async {
     final sqliteDb = sqlite3.openInMemory();
     _createLegacySchemaV1(sqliteDb);
     const weekStart = '2024-06-03';
@@ -69,7 +69,7 @@ void main() {
     );
 
     final migrated = AppDatabase(NativeDatabase.opened(sqliteDb));
-    expect(migrated.schemaVersion, 10);
+    expect(migrated.schemaVersion, 11);
 
     final tasks = await migrated.select(migrated.tasks).get();
     expect(tasks, hasLength(1));
@@ -86,19 +86,21 @@ void main() {
     expect(await _tableExists(migrated, 'week_templates'), isTrue);
     expect(await _tableExists(migrated, 'week_template_tasks'), isTrue);
     expect(await _tableExists(migrated, 'periodic_reminders'), isTrue);
+    expect(await _tableExists(migrated, 'periodic_reminder_completions'), isTrue);
     expect(await _indexExists(migrated, 'idx_tasks_week_start'), isTrue);
     expect(await _indexExists(migrated, 'idx_tasks_week_planned'), isTrue);
 
     await migrated.close();
   });
 
-  test('fresh database has task indexes at v10', () async {
+  test('fresh database has task indexes at v11', () async {
     final db = AppDatabase.memory();
     addTearDown(() async {
       await db.close();
     });
-    expect(db.schemaVersion, 10);
+    expect(db.schemaVersion, 11);
     expect(await _tableExists(db, 'periodic_reminders'), isTrue);
+    expect(await _tableExists(db, 'periodic_reminder_completions'), isTrue);
     expect(await _indexExists(db, 'idx_tasks_week_start'), isTrue);
     expect(await _indexExists(db, 'idx_tasks_week_planned'), isTrue);
   });

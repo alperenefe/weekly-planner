@@ -11,6 +11,7 @@ import '../../theme/design_tokens.dart';
 import '../../widgets/planner_dialogs.dart';
 import '../../widgets/planner_top_bar.dart';
 import 'periodic_reminder_editor_sheet.dart';
+import 'periodic_reminder_history_sheet.dart';
 
 class PeriodicRemindersScreen extends StatefulWidget {
   const PeriodicRemindersScreen({super.key});
@@ -84,13 +85,57 @@ class _PeriodicRemindersScreenState extends State<PeriodicRemindersScreen> {
     );
   }
 
+  Future<void> _openHistory(PeriodicReminder item) async {
+    await showPeriodicReminderHistorySheet(
+      context: context,
+      reminder: item,
+      onChanged: () => unawaited(_reload()),
+    );
+    if (!mounted) return;
+    await _reload();
+  }
+
   Future<void> _markDone(PeriodicReminder item) async {
     await context.read<PeriodicReminderRepository>().markCompleted(item.id);
     if (!mounted) return;
-    final message = '${item.title}: ${formatDaysRemaining(item.intervalDays)}';
     await _reload();
     if (!mounted) return;
-    showPlannerSnackBar(context, message);
+    PeriodicReminder? updated;
+    for (final e in _items) {
+      if (e.id == item.id) {
+        updated = e;
+        break;
+      }
+    }
+    final daysLeft = updated != null
+        ? daysUntilDue(updated.nextDueDate)
+        : item.intervalDays;
+    showPlannerSnackBar(
+      context,
+      '${item.title}: ${formatDaysRemaining(daysLeft)}',
+    );
+  }
+
+  Future<void> _undoLastDone(PeriodicReminder item) async {
+    final ok = await PlannerDialogs.confirmDelete(
+      context,
+      title: 'Son yapılışı geri al?',
+      message:
+          'Yanlışlıkla «Yaptım» dediysen son kayıt silinir; sıradaki gün eski haline döner.',
+    );
+    if (ok != true || !mounted) return;
+    final undone =
+        await context.read<PeriodicReminderRepository>().undoLastCompletion(
+              item.id,
+            );
+    if (!mounted) return;
+    if (!undone) {
+      showPlannerErrorSnackBar(context, 'Geri alınacak kayıt yok');
+      return;
+    }
+    await _reload();
+    if (!mounted) return;
+    showPlannerSnackBar(context, 'Son yapılış geri alındı');
   }
 
   Future<void> _confirmDelete(PeriodicReminder item) async {
@@ -170,8 +215,12 @@ class _PeriodicRemindersScreenState extends State<PeriodicRemindersScreen> {
                 for (final item in _items)
                   _ReminderRow(
                     item: item,
+                    onTap: () => unawaited(_openHistory(item)),
                     onDone: () => unawaited(_markDone(item)),
                     onEdit: () => unawaited(_openEditor(existing: item)),
+                    onUndoLast: item.lastCompletedAt != null
+                        ? () => unawaited(_undoLastDone(item))
+                        : null,
                     onDelete: () => unawaited(_confirmDelete(item)),
                   ),
               ],
@@ -183,14 +232,18 @@ class _PeriodicRemindersScreenState extends State<PeriodicRemindersScreen> {
 class _ReminderRow extends StatelessWidget {
   const _ReminderRow({
     required this.item,
+    required this.onTap,
     required this.onDone,
     required this.onEdit,
+    required this.onUndoLast,
     required this.onDelete,
   });
 
   final PeriodicReminder item;
+  final VoidCallback onTap;
   final VoidCallback onDone;
   final VoidCallback onEdit;
+  final VoidCallback? onUndoLast;
   final VoidCallback onDelete;
 
   @override
@@ -200,6 +253,7 @@ class _ReminderRow extends StatelessWidget {
     final remainingText = formatDaysRemaining(daysLeft);
     final overdue = daysLeft < 0;
     final dueToday = daysLeft == 0;
+    final lastDone = formatLastCompletedLabel(item.lastCompletedAt);
 
     Color statusColor = DesignTokens.slate400;
     if (overdue) {
@@ -213,73 +267,100 @@ class _ReminderRow extends StatelessWidget {
       child: Material(
         color: DesignTokens.slate900,
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.title,
-                      key: Key('periodic_reminder_title_${item.id}'),
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: DesignTokens.slate200,
-                        fontWeight: FontWeight.w600,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        key: Key('periodic_reminder_title_${item.id}'),
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: DesignTokens.slate200,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        remainingText,
+                        key: Key('periodic_reminder_days_${item.id}'),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: statusColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        lastDone != null
+                            ? 'Son yapılış: $lastDone'
+                            : 'Henüz yapılmadı',
+                        key: Key('periodic_reminder_last_${item.id}'),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: DesignTokens.slate500,
+                        ),
+                      ),
+                      Text(
+                        'Her ${formatIntervalLabel(item.intervalDays)} · Geçmiş için dokun',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: DesignTokens.slate600,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  key: Key('periodic_reminder_done_${item.id}'),
+                  tooltip: 'Yaptım',
+                  onPressed: onDone,
+                  icon: const Icon(Icons.check_circle_outline),
+                  color: const Color(0xFF22C55E),
+                ),
+                PopupMenuButton<String>(
+                  key: Key('periodic_reminder_menu_${item.id}'),
+                  icon: const Icon(Icons.more_vert, color: DesignTokens.slate400),
+                  color: DesignTokens.slate900,
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'history':
+                        onTap();
+                      case 'edit':
+                        onEdit();
+                      case 'undo':
+                        onUndoLast?.call();
+                      case 'delete':
+                        onDelete();
+                    }
+                  },
+                  itemBuilder: (ctx) => [
+                    const PopupMenuItem(
+                      value: 'history',
+                      child: Text('Geçmiş'),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      remainingText,
-                      key: Key('periodic_reminder_days_${item.id}'),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: statusColor,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Düzenle'),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Her ${formatIntervalLabel(item.intervalDays)}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: DesignTokens.slate500,
+                    if (onUndoLast != null)
+                      const PopupMenuItem(
+                        value: 'undo',
+                        child: Text('Son yapılışı geri al'),
                       ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Sil'),
                     ),
                   ],
                 ),
-              ),
-              IconButton(
-                key: Key('periodic_reminder_done_${item.id}'),
-                tooltip: 'Yaptım',
-                onPressed: onDone,
-                icon: const Icon(Icons.check_circle_outline),
-                color: const Color(0xFF22C55E),
-              ),
-              PopupMenuButton<String>(
-                key: Key('periodic_reminder_menu_${item.id}'),
-                icon: const Icon(Icons.more_vert, color: DesignTokens.slate400),
-                color: DesignTokens.slate900,
-                onSelected: (value) {
-                  switch (value) {
-                    case 'edit':
-                      onEdit();
-                    case 'delete':
-                      onDelete();
-                  }
-                },
-                itemBuilder: (ctx) => [
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: Text('Düzenle'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Sil'),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -1,4 +1,5 @@
 import '../models/periodic_reminder.dart';
+import 'turkish_date.dart';
 import 'week_calendar.dart';
 
 /// Bugünün yerel ISO tarihi (`YYYY-MM-DD`).
@@ -33,4 +34,24 @@ String formatIntervalLabel(int days) {
     if (p.days == days) return p.label;
   }
   return '$days gün';
+}
+
+DateTime? parseCompletedAtLocal(String? isoUtc) {
+  if (isoUtc == null || isoUtc.trim().isEmpty) return null;
+  return DateTime.tryParse(isoUtc)?.toLocal();
+}
+
+/// Liste satırı: «Son: 28 May 2026» veya null → henüz yok.
+String? formatLastCompletedLabel(String? lastCompletedAtIso) {
+  final local = parseCompletedAtLocal(lastCompletedAtIso);
+  if (local == null) return null;
+  return trShortDate(local);
+}
+
+String formatCompletedAtLabel(String completedAtIso) {
+  final local = parseCompletedAtLocal(completedAtIso);
+  if (local == null) return completedAtIso;
+  final h = local.hour.toString().padLeft(2, '0');
+  final m = local.minute.toString().padLeft(2, '0');
+  return '${trShortDate(local)} · $h:$m';
 }
