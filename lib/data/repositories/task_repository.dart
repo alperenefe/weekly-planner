@@ -64,6 +64,24 @@ class TaskRepository {
     return rows.map((t) => t.id).toList();
   }
 
+  Future<List<int>> getTaskIdsWithReminderFlag() async {
+    final rows = await (_db.select(_db.tasks)
+          ..where((t) => t.reminderEnabled.equals(1)))
+        .get();
+    return rows.map((t) => t.id).toList();
+  }
+
+  Future<List<Task>> getTasksWithActiveReminders() async {
+    return (_db.select(_db.tasks)
+          ..where(
+            (t) =>
+                t.reminderEnabled.equals(1) &
+                t.status.equals('planned') &
+                t.reminderMinutes.isNotNull(),
+          ))
+        .get();
+  }
+
   /// `week_start` bu hafta ama `planned_date` bu haftanın günlerinde değil (görünmez kalmasın diye havuzda gösterilir).
   Future<List<Task>> getOrphanPlannedTasks(String weekStart) async {
     final allowed = weekdayIsosFromMonday(weekStart).toSet();

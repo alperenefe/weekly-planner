@@ -4,6 +4,7 @@ import 'package:weekly_planner/app.dart';
 import 'package:weekly_planner/config/planner_feature_flags.dart';
 import 'package:weekly_planner/data/db/app_database.dart';
 import 'package:weekly_planner/data/repositories/monthly_goal_repository.dart';
+import 'package:weekly_planner/data/repositories/periodic_reminder_repository.dart';
 import 'package:weekly_planner/data/repositories/recurring_template_repository.dart';
 import 'package:weekly_planner/data/repositories/task_repository.dart';
 import 'package:weekly_planner/data/repositories/week_template_repository.dart';
@@ -37,6 +38,7 @@ MultiProvider plannerAppWithDb(
   final summaryService = SummaryService(taskRepo);
   final exportService = ExportService(taskRepo, summaryService);
   final monthlyGoalRepo = MonthlyGoalRepository(db);
+  final periodicReminderRepo = PeriodicReminderRepository(db);
   final monthlyGoalService = MonthlyGoalService(taskRepo);
   final weekTemplateRepo = WeekTemplateRepository(db);
   final planRevision = PlanDataRevision();
@@ -60,6 +62,7 @@ MultiProvider plannerAppWithDb(
       Provider.value(value: taskRepo),
       Provider.value(value: templateRepo),
       Provider.value(value: monthlyGoalRepo),
+      Provider.value(value: periodicReminderRepo),
       Provider.value(value: monthlyGoalService),
       Provider.value(value: weekTemplateRepo),
       Provider(

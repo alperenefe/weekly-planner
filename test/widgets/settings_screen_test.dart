@@ -36,6 +36,13 @@ void main() {
 
     expect(find.byKey(const Key('settings_about_row')), findsOneWidget);
     expect(find.textContaining('9.9.9'), findsWidgets);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings_feature_copy_last_week'), skipOffstage: false),
+      500,
+    );
+    await tester.pumpAndSettle();
+
     expect(find.byKey(const Key('settings_feature_copy_last_week')), findsOneWidget);
     expect(find.byKey(const Key('settings_feature_plan_shift')), findsOneWidget);
     expect(find.byKey(const Key('settings_feature_summary_tab')), findsOneWidget);
