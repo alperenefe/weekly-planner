@@ -49,6 +49,7 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
         final flags = store.flags;
         final spec = buildPlannerNavSpec(flags);
         return Scaffold(
+          extendBody: true,
           body: FadeTransition(
             opacity: CurvedAnimation(
               parent: _tabFade,

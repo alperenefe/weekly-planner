@@ -146,7 +146,7 @@ PlannerNavSpec buildPlannerNavSpec(PlannerFeatureFlags flags) {
 
         selectedIcon: Icon(Icons.event_repeat),
 
-        label: 'Hatırlatıcılar',
+        label: 'Hatırlat',
 
       ),
 

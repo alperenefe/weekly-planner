@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../models/periodic_reminder.dart';
 import '../../theme/design_tokens.dart';
-
 class PeriodicReminderEditorSheet extends StatefulWidget {
   const PeriodicReminderEditorSheet({
     super.key,
@@ -24,46 +22,46 @@ class PeriodicReminderEditorSheet extends StatefulWidget {
 class _PeriodicReminderEditorSheetState
     extends State<PeriodicReminderEditorSheet> {
   late final TextEditingController _titleController;
-  late final TextEditingController _customDaysController;
-  late int _selectedDays;
-  bool _useCustomDays = false;
+  late final TextEditingController _daysController;
+  String? _titleError;
+  String? _daysError;
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.existingTitle ?? '');
-    final initialDays = widget.existingIntervalDays ?? 14;
-    final isPreset =
-        PeriodicReminderIntervals.presets.any((p) => p.days == initialDays);
-    _selectedDays = initialDays;
-    _useCustomDays = !isPreset;
-    _customDaysController = TextEditingController(
-      text: isPreset ? '' : '$initialDays',
+    final initialDays = widget.existingIntervalDays;
+    _daysController = TextEditingController(
+      text: initialDays != null ? '$initialDays' : '',
     );
   }
 
   @override
   void dispose() {
     _titleController.dispose();
-    _customDaysController.dispose();
+    _daysController.dispose();
     super.dispose();
   }
 
-  int? _resolveIntervalDays() {
-    if (_useCustomDays) {
-      final parsed = int.tryParse(_customDaysController.text.trim());
-      if (parsed == null || parsed < 1) return null;
-      return parsed;
-    }
-    return _selectedDays;
+  int? _parseDays() {
+    final parsed = int.tryParse(_daysController.text.trim());
+    if (parsed == null || parsed < 1 || parsed > 3650) return null;
+    return parsed;
   }
 
   void _submit() {
     final title = _titleController.text.trim();
-    if (title.isEmpty) return;
-    final days = _resolveIntervalDays();
-    if (days == null) return;
-    Navigator.of(context).pop((title: title, intervalDays: days));
+    final days = _parseDays();
+    final titleErr = title.isEmpty ? 'Başlık girmelisin' : null;
+    final daysErr = days == null ? '1–3650 arası gün sayısı gir' : null;
+
+    setState(() {
+      _titleError = titleErr;
+      _daysError = daysErr;
+    });
+    if (titleErr != null || daysErr != null) return;
+
+    Navigator.of(context).pop((title: title, intervalDays: days!));
   }
 
   @override
@@ -89,9 +87,38 @@ class _PeriodicReminderEditorSheetState
             key: const Key('periodic_reminder_title_field'),
             controller: _titleController,
             autofocus: true,
-            style: theme.textTheme.bodyLarge?.copyWith(color: DesignTokens.white),
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: DesignTokens.white,
+            ),
             decoration: InputDecoration(
+              labelText: 'Başlık',
               hintText: 'Örn. Havluları değiştir',
+              errorText: _titleError,
+              hintStyle: TextStyle(color: DesignTokens.slate500),
+              filled: true,
+              fillColor: DesignTokens.slate950,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: DesignTokens.slate800),
+              ),
+            ),
+            textInputAction: TextInputAction.next,
+            onSubmitted: (_) => FocusScope.of(context).nextFocus(),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('periodic_reminder_days_field'),
+            controller: _daysController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: DesignTokens.white,
+            ),
+            decoration: InputDecoration(
+              labelText: 'Tekrar aralığı',
+              hintText: 'Gün sayısı',
+              errorText: _daysError,
+              suffixText: 'gün',
               hintStyle: TextStyle(color: DesignTokens.slate500),
               filled: true,
               fillColor: DesignTokens.slate950,
@@ -103,64 +130,13 @@ class _PeriodicReminderEditorSheetState
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _submit(),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Tekrar aralığı',
-            style: theme.textTheme.titleSmall?.copyWith(
-              color: DesignTokens.slate400,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final preset in PeriodicReminderIntervals.presets)
-                ChoiceChip(
-                  key: Key('periodic_interval_${preset.days}'),
-                  label: Text(preset.label),
-                  selected: !_useCustomDays && _selectedDays == preset.days,
-                  onSelected: (_) {
-                    setState(() {
-                      _useCustomDays = false;
-                      _selectedDays = preset.days;
-                    });
-                  },
-                ),
-              ChoiceChip(
-                key: const Key('periodic_interval_custom'),
-                label: const Text('Özel'),
-                selected: _useCustomDays,
-                onSelected: (_) {
-                  setState(() => _useCustomDays = true);
-                },
-              ),
-            ],
-          ),
-          if (_useCustomDays) ...[
-            const SizedBox(height: 12),
-            TextField(
-              key: const Key('periodic_reminder_custom_days'),
-              controller: _customDaysController,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: DesignTokens.white,
-              ),
-              decoration: InputDecoration(
-                hintText: 'Gün sayısı',
-                suffixText: 'gün',
-                hintStyle: TextStyle(color: DesignTokens.slate500),
-                filled: true,
-                fillColor: DesignTokens.slate950,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: DesignTokens.slate800),
-                ),
-              ),
+          Text(
+            'Örn. 14 = iki haftada bir, 180 = yaklaşık 6 ayda bir',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: DesignTokens.slate500,
             ),
-          ],
+          ),
           const SizedBox(height: 20),
           FilledButton(
             key: const Key('periodic_reminder_save'),

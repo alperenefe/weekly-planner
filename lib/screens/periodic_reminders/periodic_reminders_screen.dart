@@ -51,26 +51,37 @@ class _PeriodicRemindersScreenState extends State<PeriodicRemindersScreen> {
 
     final repo = context.read<PeriodicReminderRepository>();
     final now = DateTime.now().toUtc().toIso8601String();
-    if (existing == null) {
-      await repo.insertReminder(
-        PeriodicReminderCompanion.insert(
+    try {
+      if (existing == null) {
+        await repo.insertReminder(
+          PeriodicReminderCompanion.insert(
+            title: result.title,
+            intervalDays: result.intervalDays,
+            nextDueDate: nextDueAfterInterval(result.intervalDays),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+      } else {
+        await repo.updateReminder(
+          existing.id,
           title: result.title,
           intervalDays: result.intervalDays,
-          nextDueDate: nextDueAfterInterval(result.intervalDays),
-          createdAt: now,
-          updatedAt: now,
-        ),
-      );
-    } else {
-      await repo.updateReminder(
-        existing.id,
-        title: result.title,
-        intervalDays: result.intervalDays,
-        nextDueDate: existing.nextDueDate,
-      );
+          nextDueDate: existing.nextDueDate,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      showPlannerErrorSnackBar(context, 'Kaydedilemedi: $e');
+      return;
     }
     if (!mounted) return;
     await _reload();
+    if (!mounted) return;
+    showPlannerSnackBar(
+      context,
+      existing == null ? 'Hatırlatıcı eklendi' : 'Güncellendi',
+    );
   }
 
   Future<void> _markDone(PeriodicReminder item) async {
@@ -101,11 +112,14 @@ class _PeriodicRemindersScreenState extends State<PeriodicRemindersScreen> {
     return Scaffold(
       key: const Key('periodic_reminders_screen'),
       appBar: const PlannerTopBar(title: 'Hatırlatıcılar'),
-      floatingActionButton: FloatingActionButton.extended(
-        key: const Key('periodic_reminders_add_fab'),
-        onPressed: () => unawaited(_openEditor()),
-        icon: const Icon(Icons.add),
-        label: const Text('Ekle'),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 72),
+        child: FloatingActionButton.extended(
+          key: const Key('periodic_reminders_add_fab'),
+          onPressed: () => unawaited(_openEditor()),
+          icon: const Icon(Icons.add),
+          label: const Text('Ekle'),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -115,31 +129,42 @@ class _PeriodicRemindersScreenState extends State<PeriodicRemindersScreen> {
                 if (_items.isEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 32),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.event_repeat,
-                          size: 48,
-                          color: DesignTokens.slate600,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Periyodik iş ekle',
-                          key: const Key('periodic_reminders_empty'),
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: DesignTokens.slate400,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        key: const Key('periodic_reminders_empty'),
+                        onTap: () => unawaited(_openEditor()),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.event_repeat,
+                                size: 48,
+                                color: DesignTokens.slate600,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Periyodik iş ekle',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  color: DesignTokens.blue400,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Başlık + kaç günde bir (örn. 14, 180)',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: DesignTokens.slate500,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Örn. Havluları değiştir (2 hafta),\nPerde yıka (6 ay)',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: DesignTokens.slate500,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 for (final item in _items)
