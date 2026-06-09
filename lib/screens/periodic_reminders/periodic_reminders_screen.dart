@@ -8,6 +8,7 @@ import '../../data/repositories/periodic_reminder_repository.dart';
 import '../../date/periodic_reminder_dates.dart';
 import '../../models/periodic_reminder.dart';
 import '../../theme/design_tokens.dart';
+import '../../theme/planner_shell_layout.dart';
 import '../../widgets/planner_dialogs.dart';
 import '../../widgets/planner_top_bar.dart';
 import 'periodic_reminder_editor_sheet.dart';
@@ -158,10 +159,15 @@ class _PeriodicRemindersScreenState extends State<PeriodicRemindersScreen> {
       key: const Key('periodic_reminders_screen'),
       appBar: const PlannerTopBar(title: 'Hatırlatıcılar'),
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 72),
+        padding: EdgeInsets.only(
+          bottom: plannerShellFabBottomPadding(context),
+        ),
         child: FloatingActionButton.extended(
           key: const Key('periodic_reminders_add_fab'),
           onPressed: () => unawaited(_openEditor()),
+          backgroundColor: DesignTokens.blue600,
+          foregroundColor: DesignTokens.white,
+          elevation: 8,
           icon: const Icon(Icons.add),
           label: const Text('Ekle'),
         ),

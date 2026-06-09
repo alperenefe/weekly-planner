@@ -18,6 +18,7 @@ import '../../services/task_focus_timer_controller.dart';
 import '../../services/week_service.dart';
 import '../../services/week_template_service.dart';
 import '../../theme/design_tokens.dart';
+import '../../theme/planner_shell_layout.dart';
 import '../../widgets/add_task_sheet.dart';
 import '../../widgets/board_column.dart';
 import '../../widgets/edit_task_sheet.dart';
@@ -43,7 +44,6 @@ class WeeklyPlanScreen extends StatefulWidget {
 }
 
 class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
-  static const double _fabNavClearance = 88;
   static const double _dragFeedbackCardWidth = WeeklyPlanScreen.columnWidth - 48;
 
   late String _weekStart;
@@ -578,8 +578,7 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset =
-        MediaQuery.viewPaddingOf(context).bottom + _fabNavClearance;
+    final bottomInset = plannerShellFabBottomPadding(context);
     final featureFlags = context.watch<PlannerFeatureFlagsStore>().flags;
     final copyBtn = IconButton(
       key: const Key('copy_last_week'),

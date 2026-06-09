@@ -224,6 +224,24 @@ class PeriodicReminderRepository {
     });
   }
 
+  Future<void> updateCompletionCompletedAt(
+    int completionId,
+    String completedAtIsoUtc,
+  ) async {
+    final rows = await _db.customSelect(
+      'SELECT reminder_id FROM periodic_reminder_completions WHERE id = ?',
+      variables: [Variable<int>(completionId)],
+      readsFrom: const {},
+    ).get();
+    if (rows.isEmpty) return;
+    final reminderId = rows.single.read<int>('reminder_id');
+    await _db.customStatement(
+      'UPDATE periodic_reminder_completions SET completed_at = ? WHERE id = ?',
+      [completedAtIsoUtc, completionId],
+    );
+    await _reconcileReminderAfterHistoryChange(reminderId);
+  }
+
   Future<void> deleteCompletion(int completionId) async {
     final rows = await _db.customSelect(
       'SELECT reminder_id FROM periodic_reminder_completions WHERE id = ?',

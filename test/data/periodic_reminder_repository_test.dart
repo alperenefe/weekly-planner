@@ -83,6 +83,37 @@ void main() {
       expect(await repo.getCompletionsForReminder(id), isEmpty);
     });
 
+    test('updateCompletionCompletedAt changes date and reconciles next due',
+        () async {
+      final ref = DateTime(2026, 5, 10, 14, 30);
+      final now = ref.toUtc().toIso8601String();
+      final id = await repo.insertReminder(
+        PeriodicReminderCompanion.insert(
+          title: 'Havlular',
+          intervalDays: 14,
+          nextDueDate: '2026-05-10',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await repo.markCompleted(id);
+      final history = await repo.getCompletionsForReminder(id);
+      expect(history, hasLength(1));
+
+      final newLocal = DateTime(2026, 5, 5, 9, 0);
+      await repo.updateCompletionCompletedAt(
+        history.single.id,
+        newLocal.toUtc().toIso8601String(),
+      );
+
+      final item = (await repo.getAllSortedByDueDate()).single;
+      expect(item.lastCompletedAt, newLocal.toUtc().toIso8601String());
+      expect(
+        item.nextDueDate,
+        nextDueAfterInterval(14, reference: newLocal),
+      );
+    });
+
     test('deleteReminder removes row', () async {
       final now = DateTime.now().toUtc().toIso8601String();
       final id = await repo.insertReminder(

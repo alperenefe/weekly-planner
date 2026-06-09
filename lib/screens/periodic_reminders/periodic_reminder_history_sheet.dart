@@ -44,22 +44,26 @@ class _PeriodicReminderHistorySheet extends StatefulWidget {
 
 class _PeriodicReminderHistorySheetState
     extends State<_PeriodicReminderHistorySheet> {
+  late PeriodicReminder _reminder;
   List<PeriodicReminderCompletion> _history = [];
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
+    _reminder = widget.reminder;
     _load();
   }
 
   Future<void> _load() async {
     setState(() => _loading = true);
     final repo = context.read<PeriodicReminderRepository>();
-    final items = await repo.getCompletionsForReminder(widget.reminder.id);
+    final items = await repo.getCompletionsForReminder(_reminder.id);
+    final fresh = await repo.getReminderById(_reminder.id);
     if (!mounted) return;
     setState(() {
       _history = items;
+      if (fresh != null) _reminder = fresh;
       _loading = false;
     });
   }
@@ -67,15 +71,15 @@ class _PeriodicReminderHistorySheetState
   Future<void> _editReminder() async {
     final result = await showPeriodicReminderEditor(
       context: context,
-      existingTitle: widget.reminder.title,
-      existingIntervalDays: widget.reminder.intervalDays,
+      existingTitle: _reminder.title,
+      existingIntervalDays: _reminder.intervalDays,
     );
     if (result == null || !mounted) return;
     await context.read<PeriodicReminderRepository>().updateReminder(
-          widget.reminder.id,
+          _reminder.id,
           title: result.title,
           intervalDays: result.intervalDays,
-          nextDueDate: widget.reminder.nextDueDate,
+          nextDueDate: _reminder.nextDueDate,
         );
     if (!mounted) return;
     widget.onChanged();
@@ -84,7 +88,53 @@ class _PeriodicReminderHistorySheetState
     Navigator.of(context).pop();
   }
 
-  Future<void> _undoCompletion(PeriodicReminderCompletion entry) async {
+  Future<void> _editCompletionDate(PeriodicReminderCompletion entry) async {
+    final local = parseCompletedAtLocal(entry.completedAt) ?? DateTime.now();
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: local,
+      firstDate: DateTime(2020, 1, 1),
+      lastDate: DateTime.now(),
+      helpText: 'Yapılış tarihi',
+      cancelText: 'İptal',
+      confirmText: 'Tamam',
+    );
+    if (pickedDate == null || !mounted) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(local),
+      helpText: 'Yapılış saati',
+      cancelText: 'İptal',
+      confirmText: 'Tamam',
+    );
+    if (pickedTime == null || !mounted) return;
+
+    final updatedLocal = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+    if (updatedLocal.isAfter(DateTime.now())) {
+      if (!mounted) return;
+      showPlannerErrorSnackBar(context, 'Gelecek tarih seçilemez');
+      return;
+    }
+
+    await context.read<PeriodicReminderRepository>().updateCompletionCompletedAt(
+          entry.id,
+          updatedLocal.toUtc().toIso8601String(),
+        );
+    if (!mounted) return;
+    widget.onChanged();
+    await _load();
+    if (!mounted) return;
+    showPlannerSnackBar(context, 'Tarih güncellendi');
+  }
+
+  Future<void> _deleteCompletion(PeriodicReminderCompletion entry) async {
     final ok = await PlannerDialogs.confirmDelete(
       context,
       title: 'Kayıt silinsin mi?',
@@ -100,15 +150,15 @@ class _PeriodicReminderHistorySheetState
     widget.onChanged();
     await _load();
     if (!mounted) return;
-    showPlannerSnackBar(context, 'Kayıt güncellendi');
+    showPlannerSnackBar(context, 'Kayıt silindi');
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
-    final lastLabel = formatLastCompletedLabel(widget.reminder.lastCompletedAt);
-    final daysLeft = daysUntilDue(widget.reminder.nextDueDate);
+    final lastLabel = formatLastCompletedLabel(_reminder.lastCompletedAt);
+    final daysLeft = daysUntilDue(_reminder.nextDueDate);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + bottom),
@@ -128,7 +178,7 @@ class _PeriodicReminderHistorySheetState
           ),
           const SizedBox(height: 12),
           Text(
-            widget.reminder.title,
+            _reminder.title,
             style: theme.textTheme.titleLarge?.copyWith(
               color: DesignTokens.white,
               fontWeight: FontWeight.w700,
@@ -144,7 +194,7 @@ class _PeriodicReminderHistorySheetState
             ),
           ),
           Text(
-            'Her ${formatIntervalLabel(widget.reminder.intervalDays)}',
+            'Her ${formatIntervalLabel(_reminder.intervalDays)}',
             style: theme.textTheme.bodySmall?.copyWith(
               color: DesignTokens.slate500,
             ),
@@ -166,7 +216,7 @@ class _PeriodicReminderHistorySheetState
           Text(
             'Geçmiş',
             style: theme.textTheme.titleSmall?.copyWith(
-              color: DesignTokens.slate300,
+              color: DesignTokens.slate400,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -196,10 +246,10 @@ class _PeriodicReminderHistorySheetState
                 itemCount: _history.length,
                 itemBuilder: (context, index) {
                   final entry = _history[index];
-                  final isLatest = index == 0;
                   return ListTile(
                     key: Key('periodic_history_${entry.id}'),
                     contentPadding: EdgeInsets.zero,
+                    onTap: () => _editCompletionDate(entry),
                     title: Text(
                       formatCompletedAtLabel(entry.completedAt),
                       style: theme.textTheme.bodyMedium?.copyWith(
@@ -214,15 +264,24 @@ class _PeriodicReminderHistorySheetState
                             ),
                           )
                         : null,
-                    trailing: IconButton(
-                      tooltip: isLatest
-                          ? 'Son kaydı geri al'
-                          : 'Bu kaydı sil',
-                      icon: Icon(
-                        isLatest ? Icons.undo : Icons.delete_outline,
-                        color: DesignTokens.slate400,
-                      ),
-                      onPressed: () => _undoCompletion(entry),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          key: Key('periodic_history_edit_date_${entry.id}'),
+                          tooltip: 'Tarihi değiştir',
+                          icon: const Icon(Icons.edit_calendar_outlined),
+                          color: DesignTokens.slate400,
+                          onPressed: () => _editCompletionDate(entry),
+                        ),
+                        IconButton(
+                          key: Key('periodic_history_delete_${entry.id}'),
+                          tooltip: 'Kaydı sil',
+                          icon: const Icon(Icons.delete_outline),
+                          color: DesignTokens.slate400,
+                          onPressed: () => _deleteCompletion(entry),
+                        ),
+                      ],
                     ),
                   );
                 },

@@ -36,6 +36,7 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
 
   void _onBranchSelected(int index) {
     if (index != widget.navigationShell.currentIndex) {
+      ScaffoldMessenger.of(context).clearSnackBars();
       _tabFade.forward(from: 0);
     }
     widget.navigationShell.goBranch(index);

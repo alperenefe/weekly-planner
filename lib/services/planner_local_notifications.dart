@@ -236,7 +236,7 @@ class PlannerLocalNotifications {
         matchDateTimeComponents: DateTimeComponents.time,
         notificationDetails: _reminderDetails,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        title: 'Bugünün planı',
+        title: 'Bugünün planı (takvim)',
         body: body,
       );
     } on Object {

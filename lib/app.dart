@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'router/app_router.dart';
-import 'services/app_distribution_update.dart';
 import 'services/planner_feature_flags_store.dart';
 import 'services/task_focus_timer_controller.dart';
 import 'theme/app_theme.dart';
@@ -27,9 +26,6 @@ class _WeeklyPlannerAppState extends State<WeeklyPlannerApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      AppDistributionUpdate.checkFromApp();
-    });
   }
 
   @override
