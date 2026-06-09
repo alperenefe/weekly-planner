@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../nav/planner_nav_spec.dart';
 import '../../services/planner_feature_flags_store.dart';
+import '../../theme/motion_accessibility.dart';
 import '../../widgets/planner_bottom_nav.dart';
 
 class MainShell extends StatefulWidget {
@@ -37,7 +38,9 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
   void _onBranchSelected(int index) {
     if (index != widget.navigationShell.currentIndex) {
       ScaffoldMessenger.of(context).clearSnackBars();
-      _tabFade.forward(from: 0);
+      if (!MotionAccessibility.reduced(context)) {
+        _tabFade.forward(from: 0);
+      }
     }
     widget.navigationShell.goBranch(index);
     setState(() {});
@@ -49,23 +52,26 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
       builder: (context, store, _) {
         final flags = store.flags;
         final spec = buildPlannerNavSpec(flags);
+        final body = widget.navigationShell;
         return Scaffold(
           extendBody: true,
-          body: FadeTransition(
-            opacity: CurvedAnimation(
-              parent: _tabFade,
-              curve: Curves.easeOutCubic,
-            ),
-            child: ScaleTransition(
-              scale: Tween<double>(begin: 0.98, end: 1).animate(
-                CurvedAnimation(
-                  parent: _tabFade,
-                  curve: Curves.easeOutCubic,
+          body: MotionAccessibility.reduced(context)
+              ? body
+              : FadeTransition(
+                  opacity: CurvedAnimation(
+                    parent: _tabFade,
+                    curve: Curves.easeOutCubic,
+                  ),
+                  child: ScaleTransition(
+                    scale: Tween<double>(begin: 0.98, end: 1).animate(
+                      CurvedAnimation(
+                        parent: _tabFade,
+                        curve: Curves.easeOutCubic,
+                      ),
+                    ),
+                    child: body,
+                  ),
                 ),
-              ),
-              child: widget.navigationShell,
-            ),
-          ),
           bottomNavigationBar: PlannerBottomNav(
             spec: spec,
             shellBranchIndex: widget.navigationShell.currentIndex,

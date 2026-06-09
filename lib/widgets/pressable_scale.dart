@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/design_tokens.dart';
+import '../theme/motion_accessibility.dart';
 
 class PressableScale extends StatefulWidget {
   const PressableScale({
@@ -25,8 +26,9 @@ class _PressableScaleState extends State<PressableScale> {
   @override
   Widget build(BuildContext context) {
     final active = widget.enabled && widget.onTap != null;
+    final reduced = MotionAccessibility.reduced(context);
     return GestureDetector(
-      onTapDown: active ? (_) => setState(() => _pressed = true) : null,
+      onTapDown: active && !reduced ? (_) => setState(() => _pressed = true) : null,
       onTapUp: active ? (_) => setState(() => _pressed = false) : null,
       onTapCancel: active ? () => setState(() => _pressed = false) : null,
       onTap: active
@@ -36,8 +38,8 @@ class _PressableScaleState extends State<PressableScale> {
             }
           : null,
       child: AnimatedScale(
-        scale: _pressed ? 0.98 : 1,
-        duration: DesignTokens.motionFast,
+        scale: _pressed && !reduced ? 0.98 : 1,
+        duration: MotionAccessibility.dur(context, DesignTokens.motionFast),
         curve: Curves.easeOutCubic,
         child: widget.child,
       ),
