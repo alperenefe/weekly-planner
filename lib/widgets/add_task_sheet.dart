@@ -5,6 +5,7 @@ import '../date/week_calendar.dart';
 import '../plan_day_labels.dart';
 import '../theme/design_tokens.dart';
 import 'planner_dialogs.dart';
+import 'planner_sheet_handle.dart';
 
 typedef AddTaskSubmit = Future<void> Function(
   String title,
@@ -196,15 +197,16 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     final theme = Theme.of(context);
     return Material(
       key: const Key('add_task_sheet'),
-      color: DesignTokens.slate950,
+      color: theme.colorScheme.surface,
       child: SafeArea(
         child: SingleChildScrollView(
           controller: _scrollController,
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const PlannerSheetHandle(),
               Text(
                 'Yeni etkinlik',
                 style: theme.textTheme.headlineSmall?.copyWith(

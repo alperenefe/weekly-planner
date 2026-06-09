@@ -36,7 +36,21 @@ abstract final class DesignTokens {
   static const double space4 = 16;
   static const double space5 = 24;
 
+  static const Duration motionFast = Duration(milliseconds: 180);
   static const Duration motionMedium = Duration(milliseconds: 240);
+  static const Duration motionSlow = Duration(milliseconds: 320);
+
+  static const double radiusMd = 14;
+  static const double radiusLg = 20;
+  static const double radiusXl = 24;
+
+  static List<BoxShadow> cardShadow = [
+    BoxShadow(
+      color: Color(0x400F172A),
+      blurRadius: 24,
+      offset: Offset(0, 10),
+    ),
+  ];
 
   static const Color textMuted = Color(0xFFADB8C9);
 

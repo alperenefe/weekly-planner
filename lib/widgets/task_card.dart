@@ -5,6 +5,7 @@ import '../date/week_calendar.dart';
 import '../data/db/app_database.dart';
 import '../services/task_focus_timer_controller.dart';
 import '../theme/design_tokens.dart';
+import 'pressable_scale.dart';
 
 class TaskCard extends StatelessWidget {
   const TaskCard({
@@ -71,7 +72,7 @@ class TaskCard extends StatelessWidget {
       fontSize: 16,
       height: 1.5,
       fontWeight: FontWeight.w600,
-      color: DesignTokens.white,
+      color: theme.colorScheme.onSurface,
       decoration: isDone ? TextDecoration.lineThrough : null,
       decorationColor: DesignTokens.slate400,
     );
@@ -302,15 +303,6 @@ class TaskCard extends StatelessWidget {
         width: double.infinity,
         child: column,
       );
-      if (onBodyTap != null) {
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onBodyTap,
-            child: fullWidth,
-          ),
-        );
-      }
       return fullWidth;
     }
 
@@ -448,10 +440,10 @@ class TaskCard extends StatelessWidget {
       ],
     );
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+    final card = ClipRRect(
+      borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
       child: Material(
-        color: DesignTokens.slate900,
+        color: theme.colorScheme.surfaceContainerHighest,
         child: IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -480,6 +472,27 @@ class TaskCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+
+    if (onBodyTap == null) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+          boxShadow: DesignTokens.cardShadow,
+        ),
+        child: card,
+      );
+    }
+
+    return PressableScale(
+      onTap: onBodyTap,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+          boxShadow: DesignTokens.cardShadow,
+        ),
+        child: card,
       ),
     );
   }

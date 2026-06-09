@@ -12,7 +12,9 @@ import 'widgets/onboarding_dialog.dart';
 import 'widgets/task_focus_timer_layer.dart';
 
 class WeeklyPlannerApp extends StatefulWidget {
-  const WeeklyPlannerApp({super.key});
+  const WeeklyPlannerApp({super.key, this.themeMode = ThemeMode.system});
+
+  final ThemeMode themeMode;
 
   @override
   State<WeeklyPlannerApp> createState() => _WeeklyPlannerAppState();
@@ -73,7 +75,9 @@ class _WeeklyPlannerAppState extends State<WeeklyPlannerApp>
     return MaterialApp.router(
       title: 'Haftalık Plan',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: widget.themeMode,
       routerConfig: _router!,
       builder: (context, child) {
         return OnboardingGate(
