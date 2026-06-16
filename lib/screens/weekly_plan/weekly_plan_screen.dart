@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../config/planner_feature_flags.dart';
 import '../../data/db/app_database.dart';
 import '../../data/repositories/task_repository.dart';
+import '../../models/task_kind.dart';
 import '../../data/repositories/week_template_repository.dart';
 import '../../date/turkish_date.dart';
 import '../../date/week_calendar.dart';
@@ -31,8 +32,6 @@ import 'plan_board_search_filter.dart';
 import 'weekly_plan_board_scroll.dart';
 import 'weekly_plan_snapshot_loader.dart';
 import 'weekly_plan_task_column.dart';
-import 'weekly_plan_today_line.dart';
-import 'weekly_plan_today_pill.dart';
 
 class WeeklyPlanScreen extends StatefulWidget {
   const WeeklyPlanScreen({super.key});
@@ -209,7 +208,7 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
           ),
           child: AddTaskSheet(
             onSubmit: (title, duration, notes, dayIndices, startMinutes,
-                accentArgb) async {
+                accentArgb, taskKind) async {
               final repo = context.read<TaskRepository>();
               for (final dayIndex in dayIndices) {
                 final plannedIso =
@@ -227,6 +226,7 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                     accentColor: accentArgb == null
                         ? const Value.absent()
                         : Value(accentArgb),
+                    taskKind: Value(taskKind),
                     weekStart: _weekStart,
                     plannedDate: plannedIso == null
                         ? const Value.absent()
@@ -241,11 +241,12 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
               }
               if (!sheetContext.mounted) return;
               Navigator.of(sheetContext).pop();
+              final label = taskKind == TaskKind.event ? 'Etkinlik' : 'İş';
               showPlannerSnackBar(
                 sheetContext,
                 dayIndices.length == 1
-                    ? 'Etkinlik eklendi'
-                    : '${dayIndices.length} etkinlik eklendi',
+                    ? '$label eklendi'
+                    : '${dayIndices.length} $label eklendi',
               );
               if (!context.mounted) return;
               await _loadTasks();
@@ -351,15 +352,16 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                 dayChipIndexForUi(_weekStart, task.plannedDate),
             initialStartMinutes: task.startMinutes,
             initialAccentColor: task.accentColor,
+            initialTaskKind: task.taskKind,
             taskEntity: task,
-            onStartFocus: task.status == 'planned'
+            onStartFocus: task.status == 'planned' && TaskKind.isWork(task)
                 ? (draft) async {
                     await context.read<TaskFocusTimerController>().start(draft);
                   }
                 : null,
             onSubmit:
                 (title, durationMinutes, notes, int dayIndex, int? startMinutes,
-                    int? accentColorArgb) async {
+                    int? accentColorArgb, String taskKind) async {
               final repo = context.read<TaskRepository>();
               final newPlanned = plannedDateForChipIndex(_weekStart, dayIndex);
               MoveTaskOutcome? moveOut;
@@ -376,6 +378,7 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                   startMinutes: Value(startMinutes),
                   notes: Value(notes),
                   accentColor: Value(accentColorArgb),
+                  taskKind: taskKind,
                   reminderEnabled: 0,
                   reminderMinutes: const Value(null),
                   updatedAt: now,
@@ -475,14 +478,6 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
         curve: Curves.easeOutCubic,
       ),
     );
-  }
-
-  (int done, int total) _columnProgress(List<Task> tasks) {
-    var done = 0;
-    for (final t in tasks) {
-      if (t.status == 'done') done++;
-    }
-    return (done, tasks.length);
   }
 
   Future<void> _pickWeekFromCalendar() async {
@@ -743,43 +738,6 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                 ),
               ),
             ),
-          Material(
-            color: DesignTokens.slate900.withValues(alpha: 0.5),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: DesignTokens.slate800.withValues(alpha: 0.5),
-                  ),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  WeeklyPlanTodayPillStrip(
-                    weekStart: _weekStart,
-                    onDaySelected: _scrollToBoardColumn,
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                    child: Text(
-                      weeklyPlanTodaySummaryLine(
-                        weekStart: _weekStart,
-                        dayTasks: _dayTasks,
-                      ),
-                      key: const Key('weekly_plan_day_hint'),
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: DesignTokens.slate400,
-                          ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
           Expanded(
             child: AnimatedSwitcher(
               duration: DesignTokens.motionMedium,
@@ -815,18 +773,15 @@ class _WeeklyPlanScreenState extends State<WeeklyPlanScreen> {
                                 final colTasks = i == 0
                                     ? _poolTasksFiltered(featureFlags)
                                     : _dayTasksFiltered(featureFlags)[i - 1];
-                                final progress = _columnProgress(colTasks);
                                 final isTodayCol = _isTodayColumnTitle(i);
                                 return BoardColumn(
                                   title: kPlanDayLabels[i],
-                                  subtitle: isTodayCol && i > 0
+                                  dateShort: i > 0
                                       ? trDayMonthShort(
                                           parseIsoDate(dayIsos[i - 1]),
                                         )
                                       : null,
                                   badgeCount: colTasks.length,
-                                  doneCount: progress.$1,
-                                  taskCount: progress.$2,
                                   width: WeeklyPlanScreen.columnWidth,
                                   titleHighlightToday: isTodayCol,
                                   subdued: i > 0 && colTasks.isEmpty,

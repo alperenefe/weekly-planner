@@ -152,6 +152,20 @@ class WeekTemplateRepository {
     );
   }
 
+  Future<void> updateTemplateTask(
+    int id, {
+    required String title,
+    int? durationMinutes,
+    String? notes,
+    int? targetWeekday,
+  }) async {
+    await _db.customStatement(
+      'UPDATE week_template_tasks SET title = ?, duration_minutes = ?, '
+      'notes = ?, target_weekday = ? WHERE id = ?',
+      [title, durationMinutes, notes, targetWeekday, id],
+    );
+  }
+
   Future<void> updateTemplateTaskTargetWeekday(int taskId, int? targetWeekday) async {
     if (targetWeekday == null) {
       await _db.customStatement(

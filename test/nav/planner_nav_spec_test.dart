@@ -20,13 +20,13 @@ void main() {
     expect(spec.branchIndices, isNot(contains(4)));
     final labels = spec.destinations.map((d) => d.label).toList();
     expect(labels, isNot(contains('Hatırlatıcılar')));
-    expect(spec.branchIndices.last, 5);
+    expect(spec.branchIndices.last, 6);
   });
 
-  test('visibleSelectedIndex maps shell branch 5 to settings', () {
+  test('visibleSelectedIndex maps shell branch 6 to settings', () {
     const flags = PlannerFeatureFlags();
     final spec = buildPlannerNavSpec(flags);
-    final settingsVisible = spec.visibleSelectedIndex(5);
+    final settingsVisible = spec.visibleSelectedIndex(6);
     expect(spec.destinations[settingsVisible].label, 'Ayarlar');
   });
 }

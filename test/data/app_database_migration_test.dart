@@ -69,7 +69,7 @@ void main() {
     );
 
     final migrated = AppDatabase(NativeDatabase.opened(sqliteDb));
-    expect(migrated.schemaVersion, 11);
+    expect(migrated.schemaVersion, 13);
 
     final tasks = await migrated.select(migrated.tasks).get();
     expect(tasks, hasLength(1));
@@ -80,6 +80,8 @@ void main() {
     expect(tasks.single.accentColor, isNull);
     expect(tasks.single.reminderEnabled, 0);
     expect(tasks.single.reminderMinutes, isNull);
+    expect(tasks.single.taskKind, 'work');
+    expect(tasks.single.priority, 0);
 
     expect(await _tableExists(migrated, 'recurring_templates'), isTrue);
     expect(await _tableExists(migrated, 'monthly_goals'), isTrue);
@@ -87,21 +89,41 @@ void main() {
     expect(await _tableExists(migrated, 'week_template_tasks'), isTrue);
     expect(await _tableExists(migrated, 'periodic_reminders'), isTrue);
     expect(await _tableExists(migrated, 'periodic_reminder_completions'), isTrue);
+    expect(await _tableExists(migrated, 'todo_categories'), isTrue);
+    expect(await _tableExists(migrated, 'todos'), isTrue);
     expect(await _indexExists(migrated, 'idx_tasks_week_start'), isTrue);
     expect(await _indexExists(migrated, 'idx_tasks_week_planned'), isTrue);
 
     await migrated.close();
   });
 
-  test('fresh database has task indexes at v11', () async {
+  test('fresh database has task indexes at v13', () async {
     final db = AppDatabase.memory();
     addTearDown(() async {
       await db.close();
     });
-    expect(db.schemaVersion, 11);
+    expect(db.schemaVersion, 13);
     expect(await _tableExists(db, 'periodic_reminders'), isTrue);
     expect(await _tableExists(db, 'periodic_reminder_completions'), isTrue);
     expect(await _indexExists(db, 'idx_tasks_week_start'), isTrue);
     expect(await _indexExists(db, 'idx_tasks_week_planned'), isTrue);
+    expect(await _tableExists(db, 'todos'), isTrue);
+  });
+
+  test('v12 partial schema does not fail when task_kind already exists', () async {
+    final sqliteDb = sqlite3.openInMemory();
+    _createLegacySchemaV1(sqliteDb);
+    sqliteDb.execute(
+      "ALTER TABLE tasks ADD COLUMN task_kind TEXT NOT NULL DEFAULT 'work'",
+    );
+    sqliteDb.execute('PRAGMA user_version = 11');
+
+    final migrated = AppDatabase(NativeDatabase.opened(sqliteDb));
+    addTearDown(() async {
+      await migrated.close();
+    });
+    expect(migrated.schemaVersion, 13);
+    final tasks = await migrated.select(migrated.tasks).get();
+    expect(tasks, isEmpty);
   });
 }

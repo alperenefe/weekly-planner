@@ -10,6 +10,7 @@ import 'data/repositories/monthly_goal_repository.dart';
 import 'data/repositories/periodic_reminder_repository.dart';
 import 'data/repositories/recurring_template_repository.dart';
 import 'data/repositories/task_repository.dart';
+import 'data/repositories/todo_repository.dart';
 import 'data/repositories/week_template_repository.dart';
 import 'dart:async';
 
@@ -55,6 +56,7 @@ Future<void> main() async {
   final exportService = ExportService(taskRepo, summaryService);
   final monthlyGoalRepo = MonthlyGoalRepository(db);
   final periodicReminderRepo = PeriodicReminderRepository(db);
+  final todoRepo = TodoRepository(db);
   final monthlyGoalService = MonthlyGoalService(taskRepo);
   final weekTemplateRepo = WeekTemplateRepository(db);
   final reminderScheduler = ReminderSchedulerService(
@@ -77,6 +79,7 @@ Future<void> main() async {
         Provider.value(value: templateRepo),
         Provider.value(value: monthlyGoalRepo),
         Provider.value(value: periodicReminderRepo),
+        Provider.value(value: todoRepo),
         Provider.value(value: monthlyGoalService),
         Provider.value(value: weekTemplateRepo),
         Provider(

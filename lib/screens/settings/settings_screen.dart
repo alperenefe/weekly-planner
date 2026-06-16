@@ -18,7 +18,6 @@ import '../../services/reminder_scheduler_service.dart';
 import '../../services/reminder_settings_store.dart';
 import '../../theme/design_tokens.dart';
 import '../../widgets/app_brand_mark.dart';
-import '../../widgets/app_update_card.dart';
 import '../../widgets/planner_dialogs.dart';
 import '../../widgets/planner_top_bar.dart';
 

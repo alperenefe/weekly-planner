@@ -9,6 +9,7 @@ import 'package:vibration/vibration.dart';
 
 import '../data/db/app_database.dart';
 import '../data/repositories/task_repository.dart';
+import '../models/task_kind.dart';
 import 'focus_timer_notification_bridge.dart';
 import 'planner_local_notifications.dart';
 import 'reminder_settings_store.dart';
@@ -104,6 +105,7 @@ class TaskFocusTimerController extends ChangeNotifier {
   }
 
   Future<void> start(Task task) async {
+    if (TaskKind.isEvent(task)) return;
     final d = task.durationMinutes;
     if (d == null || d <= 0) return;
     if (task.status != 'planned') return;

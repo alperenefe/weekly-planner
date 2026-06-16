@@ -11,6 +11,7 @@ class PlannerFeatureFlags {
     this.recurringTemplatesEnabled = true,
     this.weekTemplatesEnabled = true,
     this.periodicRemindersTabEnabled = true,
+    this.todosTabEnabled = true,
   });
 
   final bool copyLastWeekEnabled;
@@ -22,6 +23,7 @@ class PlannerFeatureFlags {
   final bool recurringTemplatesEnabled;
   final bool weekTemplatesEnabled;
   final bool periodicRemindersTabEnabled;
+  final bool todosTabEnabled;
 
   PlannerFeatureFlags copyWith({
     bool? copyLastWeekEnabled,
@@ -33,6 +35,7 @@ class PlannerFeatureFlags {
     bool? recurringTemplatesEnabled,
     bool? weekTemplatesEnabled,
     bool? periodicRemindersTabEnabled,
+    bool? todosTabEnabled,
   }) {
     return PlannerFeatureFlags(
       copyLastWeekEnabled: copyLastWeekEnabled ?? this.copyLastWeekEnabled,
@@ -52,6 +55,7 @@ class PlannerFeatureFlags {
           weekTemplatesEnabled ?? this.weekTemplatesEnabled,
       periodicRemindersTabEnabled:
           periodicRemindersTabEnabled ?? this.periodicRemindersTabEnabled,
+      todosTabEnabled: todosTabEnabled ?? this.todosTabEnabled,
     );
   }
 
@@ -66,7 +70,8 @@ class PlannerFeatureFlags {
         other.monthlyGoalsEnabled == monthlyGoalsEnabled &&
         other.recurringTemplatesEnabled == recurringTemplatesEnabled &&
         other.weekTemplatesEnabled == weekTemplatesEnabled &&
-        other.periodicRemindersTabEnabled == periodicRemindersTabEnabled;
+        other.periodicRemindersTabEnabled == periodicRemindersTabEnabled &&
+        other.todosTabEnabled == todosTabEnabled;
   }
 
   @override
@@ -80,6 +85,7 @@ class PlannerFeatureFlags {
         recurringTemplatesEnabled,
         weekTemplatesEnabled,
         periodicRemindersTabEnabled,
+        todosTabEnabled,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -92,6 +98,7 @@ class PlannerFeatureFlags {
         'recurringTemplatesEnabled': recurringTemplatesEnabled,
         'weekTemplatesEnabled': weekTemplatesEnabled,
         'periodicRemindersTabEnabled': periodicRemindersTabEnabled,
+        'todosTabEnabled': todosTabEnabled,
       };
 
   static PlannerFeatureFlags fromJson(Map<String, dynamic>? json) {
@@ -113,6 +120,7 @@ class PlannerFeatureFlags {
       weekTemplatesEnabled: (json['weekTemplatesEnabled'] as bool?) ?? true,
       periodicRemindersTabEnabled:
           (json['periodicRemindersTabEnabled'] as bool?) ?? true,
+      todosTabEnabled: (json['todosTabEnabled'] as bool?) ?? true,
     );
   }
 

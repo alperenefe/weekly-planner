@@ -140,6 +140,33 @@ class _HistoryExportScreenState extends State<HistoryExportScreen> {
     });
   }
 
+  Future<void> _deleteAllPastWeeks() async {
+    if (_pastWeeks.isEmpty) {
+      showPlannerSnackBar(context, 'Silinecek geçmiş hafta yok');
+      return;
+    }
+    final ok = await PlannerDialogs.confirmDelete(
+      context,
+      title: 'Tüm geçmişi sil',
+      message:
+          '${_pastWeeks.length} geçmiş haftanın tüm etkinlik ve iş kayıtları '
+          'kalıcı olarak silinecek. Bu hafta etkilenmez.',
+      confirmKey: const Key('confirm_delete_all_history'),
+    );
+    if (ok != true || !mounted) return;
+    final deleted = await context
+        .read<TaskRepository>()
+        .deletePastWeeksBefore(_anchorMonday);
+    if (!mounted) return;
+    context.read<PlanDataRevision>().bump();
+    await _loadPastWeeks();
+    if (!mounted) return;
+    showPlannerSnackBar(
+      context,
+      deleted == 0 ? 'Silinecek kayıt yoktu' : '$deleted kayıt silindi',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -170,13 +197,32 @@ class _HistoryExportScreenState extends State<HistoryExportScreen> {
                   children: [
                     const Icon(Icons.history, color: DesignTokens.slate400, size: 22),
                     const SizedBox(width: 8),
-                    Text(
-                      'Geçmiş Haftalar',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: DesignTokens.white,
+                    Expanded(
+                      child: Text(
+                        'Geçmiş Haftalar',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: DesignTokens.white,
+                        ),
                       ),
                     ),
+                    if (_pastWeeks.isNotEmpty)
+                      TextButton.icon(
+                        key: const Key('history_delete_all'),
+                        onPressed: _deleteAllPastWeeks,
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          size: 18,
+                          color: PlannerDialogs.deleteRed,
+                        ),
+                        label: Text(
+                          'Tümünü sil',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: PlannerDialogs.deleteRed,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 12),

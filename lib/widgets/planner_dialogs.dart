@@ -222,7 +222,7 @@ abstract final class PlannerDialogs {
         ],
       ),
     );
-    ctrl.dispose();
+    WidgetsBinding.instance.addPostFrameCallback((_) => ctrl.dispose());
     return result;
   }
 }

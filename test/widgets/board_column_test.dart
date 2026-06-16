@@ -13,7 +13,7 @@ void main() {
               height: 200,
               child: BoardColumn(
                 title: 'Pzt',
-                subtitle: '3 etkinlik',
+                dateShort: '12 Haz',
                 badgeCount: 2,
                 width: 200,
                 child: const Text('inner'),
@@ -25,7 +25,7 @@ void main() {
     );
 
     expect(find.byKey(const Key('board_col_title_Pzt')), findsOneWidget);
-    expect(find.byKey(const Key('board_col_sub_Pzt')), findsOneWidget);
+    expect(find.byKey(const Key('board_col_date_Pzt')), findsOneWidget);
     expect(find.byKey(const Key('board_col_badge_Pzt')), findsOneWidget);
     expect(find.text('inner'), findsOneWidget);
   });
@@ -40,7 +40,7 @@ void main() {
               height: 200,
               child: BoardColumn(
                 title: 'Pzt',
-                subtitle: '19 May',
+                dateShort: '19 May',
                 badgeCount: 0,
                 width: 200,
                 titleHighlightToday: true,

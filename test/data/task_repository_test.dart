@@ -605,4 +605,38 @@ void main() {
     expect(pool, hasLength(1));
     expect(pool.single.title, 'Havuz');
   });
+
+  test('deletePastWeeksBefore removes only older weeks', () async {
+    const thisWeek = '2025-01-20';
+    const prevWeek = '2025-01-13';
+    final now = DateTime.utc(2025, 1, 20, 10).toIso8601String();
+
+    await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'Eski',
+        weekStart: prevWeek,
+        plannedDate: Value(prevWeek),
+        originalPlannedDate: Value(prevWeek),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    final currentId = await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'BuHafta',
+        weekStart: thisWeek,
+        plannedDate: Value(thisWeek),
+        originalPlannedDate: Value(thisWeek),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await repo.markDone(currentId);
+
+    final deleted = await repo.deletePastWeeksBefore(thisWeek);
+    expect(deleted, 1);
+    expect(await repo.getTasksForWeek(prevWeek), isEmpty);
+    expect(await repo.getTasksForWeek(thisWeek), hasLength(1));
+    expect((await repo.getPastWeeks(thisWeek)), isEmpty);
+  });
 }

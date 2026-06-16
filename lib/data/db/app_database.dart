@@ -42,6 +42,13 @@ class Tasks extends Table {
 
   IntColumn get accentColor => integer().named('accent_color').nullable()();
 
+  /// `work` = zamanlı iş; `event` = gün etkinliği (ör. buluşma, saat opsiyonel).
+  TextColumn get taskKind =>
+      text().named('task_kind').withDefault(const Constant('work'))();
+
+  /// 0=yok, 1=düşük, 2=orta, 3=yüksek
+  IntColumn get priority => integer().withDefault(const Constant(0))();
+
   TextColumn get createdAt => text().named('created_at')();
 
   TextColumn get updatedAt => text().named('updated_at')();
@@ -113,7 +120,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -154,6 +161,7 @@ class AppDatabase extends _$AppDatabase {
           await _createTaskIndexes(m);
           await _createPeriodicRemindersTable(m);
           await _createPeriodicReminderCompletionsTable(m);
+          await _createTodoTables(m);
         },
         onUpgrade: (Migrator m, int from, int to) async {
           if (from < 2) {
@@ -225,8 +233,85 @@ class AppDatabase extends _$AppDatabase {
             await _createPeriodicReminderCompletionsTable(m);
             await _backfillPeriodicReminderCompletions(m);
           }
+          if (from < 12) {
+            await _addTaskColumnIfMissing(m, tasks.taskKind);
+            await _createTodoTables(m);
+          }
+          if (from < 13) {
+            await _addTaskColumnIfMissing(m, tasks.priority);
+            await _addColumnIfMissing(
+              m,
+              table: 'todos',
+              column: 'priority',
+              definition: 'INTEGER NOT NULL DEFAULT 0',
+            );
+          }
         },
       );
+
+  static Future<bool> _hasColumn(Migrator m, String table, String column) async {
+    final rows = await m.database.customSelect(
+      'PRAGMA table_info($table)',
+      readsFrom: const {},
+    ).get();
+    for (final row in rows) {
+      if (row.read<String>('name') == column) return true;
+    }
+    return false;
+  }
+
+  Future<void> _addTaskColumnIfMissing(
+    Migrator m,
+    GeneratedColumn<Object> column,
+  ) async {
+    if (!await _hasColumn(m, 'tasks', column.name)) {
+      await m.addColumn(tasks, column);
+    }
+  }
+
+  static Future<void> _addColumnIfMissing(
+    Migrator m, {
+    required String table,
+    required String column,
+    required String definition,
+  }) async {
+    if (!await _hasColumn(m, table, column)) {
+      await m.database.customStatement(
+        'ALTER TABLE $table ADD COLUMN $column $definition',
+      );
+    }
+  }
+
+  static Future<void> _createTodoTables(Migrator m) async {
+    await m.database.customStatement(
+      'CREATE TABLE IF NOT EXISTS todo_categories ('
+      'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+      'name TEXT NOT NULL, '
+      'color_argb INTEGER, '
+      'sort_order INTEGER NOT NULL, '
+      'created_at TEXT NOT NULL'
+      ')',
+    );
+    await m.database.customStatement(
+      'CREATE TABLE IF NOT EXISTS todos ('
+      'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+      'title TEXT NOT NULL, '
+      'category_id INTEGER, '
+      'deadline_date TEXT, '
+      'priority INTEGER NOT NULL DEFAULT 0, '
+      'status TEXT NOT NULL DEFAULT \'planned\', '
+      'notes TEXT, '
+      'created_at TEXT NOT NULL, '
+      'updated_at TEXT NOT NULL, '
+      'completed_at TEXT, '
+      'FOREIGN KEY (category_id) REFERENCES todo_categories(id) ON DELETE SET NULL'
+      ')',
+    );
+    await m.database.customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_todos_status_deadline '
+      'ON todos(status, deadline_date)',
+    );
+  }
 
   static Future<void> _createPeriodicRemindersTable(Migrator m) async {
     await m.database.customStatement(

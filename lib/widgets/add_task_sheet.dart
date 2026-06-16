@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../date/week_calendar.dart';
+import '../models/task_kind.dart';
 import '../plan_day_labels.dart';
 import '../theme/design_tokens.dart';
 import 'planner_dialogs.dart';
@@ -14,12 +15,22 @@ typedef AddTaskSubmit = Future<void> Function(
   List<int> dayIndices,
   int? startMinutes,
   int? accentColorArgb,
+  String taskKind,
 );
 
 class AddTaskSheet extends StatefulWidget {
-  const AddTaskSheet({super.key, required this.onSubmit});
+  const AddTaskSheet({
+    super.key,
+    required this.onSubmit,
+    this.initialDayIndices,
+    this.lockDaySelection = false,
+  });
 
   final AddTaskSubmit onSubmit;
+  /// 0 = Havuz, 1–7 = haftanın günleri.
+  final Set<int>? initialDayIndices;
+  /// Gün sütununa dokunarak açıldıysa gün seçimini kilitle.
+  final bool lockDaySelection;
 
   @override
   State<AddTaskSheet> createState() => _AddTaskSheetState();
@@ -38,10 +49,19 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   bool _useStartTime = false;
   int _startMinutes = startMinutesFromQuarterIndex(36);
   int? _accentArgb;
+  String _taskKind = TaskKind.work;
+
+  bool get _isEvent => _taskKind == TaskKind.event;
 
   @override
   void initState() {
     super.initState();
+    final preset = widget.initialDayIndices;
+    if (preset != null && preset.isNotEmpty) {
+      _selectedDayIndices
+        ..clear()
+        ..addAll(preset);
+    }
     _titleController.addListener(_onTitleChanged);
   }
 
@@ -130,14 +150,16 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     if (_saving) return;
     setState(() => _saving = true);
     try {
+      final startMinutes = _isEvent || !_useStartTime ? null : _startMinutes;
       int? duration;
-      final d = _durationController.text.trim();
-      if (d.isNotEmpty) {
-        duration = int.tryParse(d);
+      if (!_isEvent) {
+        final d = _durationController.text.trim();
+        if (d.isNotEmpty) {
+          duration = int.tryParse(d);
+        }
       }
       final notesRaw = _notesController.text.trim();
       final indices = _selectedDayIndices.toList()..sort();
-      final startMinutes = _useStartTime ? _startMinutes : null;
       await widget.onSubmit(
         title,
         duration,
@@ -145,6 +167,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         indices,
         startMinutes,
         _accentArgb,
+        _taskKind,
       );
     } finally {
       if (mounted) {
@@ -208,7 +231,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
             children: [
               const PlannerSheetHandle(),
               Text(
-                'Yeni etkinlik',
+                _isEvent ? 'Yeni gün etkinliği' : 'Yeni iş',
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   fontSize: 28,
@@ -216,7 +239,35 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                   height: 1.2,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
+              SegmentedButton<String>(
+                key: const Key('add_task_kind'),
+                segments: const [
+                  ButtonSegment(
+                    value: TaskKind.work,
+                    label: Text('İş'),
+                    icon: Icon(Icons.work_outline_rounded, size: 18),
+                  ),
+                  ButtonSegment(
+                    value: TaskKind.event,
+                    label: Text('Etkinlik'),
+                    icon: Icon(Icons.event_outlined, size: 18),
+                  ),
+                ],
+                selected: {_taskKind},
+                onSelectionChanged: _saving
+                    ? null
+                    : (s) {
+                        setState(() {
+                          _taskKind = s.first;
+                          if (_isEvent) {
+                            _useStartTime = false;
+                            _durationController.clear();
+                          }
+                        });
+                      },
+              ),
+              const SizedBox(height: 16),
               Material(
                 color: DesignTokens.slate900,
                 shape: RoundedRectangleBorder(
@@ -242,136 +293,181 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                           cursorColor: DesignTokens.blue400,
                           decoration: _fieldDec(
                             'Başlık',
-                            hint: 'Etkinlik adını girin...',
+                            hint: _isEvent
+                                ? 'Örn: Ozan ile buluşma'
+                                : 'İş adını girin...',
                             errorText:
                                 _titleError ? 'Başlık girmelisin' : null,
                           ),
                           textInputAction: TextInputAction.next,
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        key: const Key('add_task_duration'),
-                        controller: _durationController,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: DesignTokens.white,
-                        ),
-                        cursorColor: DesignTokens.blue400,
-                        decoration: _fieldDec('Süre (dakika)', hint: 'Örn: 30'),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        textInputAction: TextInputAction.next,
-                      ),
-                      const SizedBox(height: 16),
-                      SwitchListTile(
-                        key: const Key('add_task_start_toggle'),
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          'Başlangıç saati',
-                          style: theme.textTheme.titleSmall?.copyWith(
+                      if (!_isEvent) ...[
+                        const SizedBox(height: 16),
+                        TextField(
+                          key: const Key('add_task_duration'),
+                          controller: _durationController,
+                          style: theme.textTheme.bodyMedium?.copyWith(
                             color: DesignTokens.white,
-                            fontWeight: FontWeight.w600,
                           ),
+                          cursorColor: DesignTokens.blue400,
+                          decoration: _fieldDec('Süre (dakika)', hint: 'Örn: 30'),
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          textInputAction: TextInputAction.next,
                         ),
-                        subtitle: Text(
-                          _useStartTime
-                              ? formatClockMinutes(_startMinutes)
-                              : 'Kapalı',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: DesignTokens.slate400,
-                          ),
-                        ),
-                        value: _useStartTime,
-                        onChanged: (v) => setState(() => _useStartTime = v),
-                        activeThumbColor: DesignTokens.blue400,
-                      ),
-                      if (_useStartTime) ...[
-                        const SizedBox(height: 8),
-                        OutlinedButton(
-                          key: const Key('add_task_start_pick'),
-                          onPressed: _saving ? null : _pickStartTime,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: DesignTokens.white,
-                            side: const BorderSide(color: DesignTokens.slate700),
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 14,
-                              horizontal: 16,
+                        const SizedBox(height: 16),
+                        SwitchListTile(
+                          key: const Key('add_task_start_toggle'),
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            'Başlangıç saati',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: DesignTokens.white,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
+                          subtitle: Text(
+                            _useStartTime
+                                ? formatClockMinutes(_startMinutes)
+                                : 'Kapalı',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: DesignTokens.slate400,
+                            ),
+                          ),
+                          value: _useStartTime,
+                          onChanged: (v) => setState(() => _useStartTime = v),
+                          activeThumbColor: DesignTokens.blue400,
+                        ),
+                        if (_useStartTime) ...[
+                          const SizedBox(height: 8),
+                          OutlinedButton(
+                            key: const Key('add_task_start_pick'),
+                            onPressed: _saving ? null : _pickStartTime,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: DesignTokens.white,
+                              side: const BorderSide(color: DesignTokens.slate700),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 14,
+                                horizontal: 16,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.schedule,
+                                  size: 20,
+                                  color: DesignTokens.blue400,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  formatClockMinutes(_startMinutes),
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    color: DesignTokens.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Değiştir',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: DesignTokens.slate400,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                      const SizedBox(height: 20),
+                      if (widget.lockDaySelection &&
+                          _selectedDayIndices.length == 1) ...[
+                        Text(
+                          'Gün',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: DesignTokens.slate400,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: DesignTokens.slate950,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: DesignTokens.slate800),
+                          ),
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const Icon(
-                                Icons.schedule,
-                                size: 20,
+                                Icons.calendar_today_outlined,
+                                size: 18,
                                 color: DesignTokens.blue400,
                               ),
                               const SizedBox(width: 10),
                               Text(
-                                formatClockMinutes(_startMinutes),
-                                style: theme.textTheme.titleMedium?.copyWith(
+                                kPlanDayLabels[_selectedDayIndices.first],
+                                style: theme.textTheme.titleSmall?.copyWith(
                                   color: DesignTokens.white,
                                   fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Değiştir',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: DesignTokens.slate400,
                                 ),
                               ),
                             ],
                           ),
                         ),
+                      ] else ...[
+                        Text(
+                          'Hedef günler',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: DesignTokens.slate400,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Birden fazla gün veya Havuz seçebilirsin.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: DesignTokens.slate500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (var i = 0; i < kPlanDayLabels.length; i++)
+                              FilterChip(
+                                key: Key('add_task_day_${kPlanDayLabels[i]}'),
+                                label: Text(kPlanDayLabels[i]),
+                                selected: _selectedDayIndices.contains(i),
+                                onSelected: (sel) => _onDayChipSelected(i, sel),
+                                selectedColor: DesignTokens.blue600,
+                                backgroundColor: DesignTokens.slate900,
+                                disabledColor: DesignTokens.slate800,
+                                checkmarkColor: DesignTokens.white,
+                                labelStyle: TextStyle(
+                                  color: _selectedDayIndices.contains(i)
+                                      ? DesignTokens.white
+                                      : DesignTokens.slate400,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 12,
+                                ),
+                                side: const BorderSide(color: DesignTokens.slate800),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                          ],
+                        ),
                       ],
-                      const SizedBox(height: 20),
-                      Text(
-                        'Hedef günler',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: DesignTokens.slate400,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Birden fazla gün veya Havuz seçebilirsin.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: DesignTokens.slate500,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (var i = 0; i < kPlanDayLabels.length; i++)
-                            FilterChip(
-                              key: Key('add_task_day_${kPlanDayLabels[i]}'),
-                              label: Text(kPlanDayLabels[i]),
-                              selected: _selectedDayIndices.contains(i),
-                              onSelected: (sel) => _onDayChipSelected(i, sel),
-                              selectedColor: DesignTokens.blue600,
-                              backgroundColor: DesignTokens.slate900,
-                              disabledColor: DesignTokens.slate800,
-                              checkmarkColor: DesignTokens.white,
-                              labelStyle: TextStyle(
-                                color: _selectedDayIndices.contains(i)
-                                    ? DesignTokens.white
-                                    : DesignTokens.slate400,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 12,
-                              ),
-                              side: const BorderSide(color: DesignTokens.slate800),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                        ],
-                      ),
                       const SizedBox(height: 16),
                       TextField(
                         key: const Key('add_task_notes'),

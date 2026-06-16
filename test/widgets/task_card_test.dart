@@ -1,7 +1,9 @@
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:weekly_planner/data/db/app_database.dart';
 import 'package:weekly_planner/data/repositories/task_repository.dart';
+import 'package:weekly_planner/models/task_kind.dart';
 import 'package:weekly_planner/widgets/task_card.dart';
 
 void main() {
@@ -111,5 +113,43 @@ void main() {
 
     task = (await repo.getTasksForWeek(week)).single;
     expect(task.status, 'planned');
+  });
+
+  testWidgets('etkinlik kartında tik ve atlama yok', (tester) async {
+    final db = AppDatabase.memory();
+    addTearDown(() async {
+      await db.close();
+    });
+    final repo = TaskRepository(db);
+    const week = '2024-10-28';
+    final now = DateTime.utc(2024, 10, 28, 14).toIso8601String();
+    final id = await repo.insertTask(
+      TasksCompanion.insert(
+        title: 'Buluşma',
+        weekStart: week,
+        taskKind: Value(TaskKind.event),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    final task = (await repo.getTasksForWeek(week)).single;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          body: TaskCard(
+            task: task,
+            onMarkDone: () => repo.markDone(task.id),
+            onUnmarkDone: () => repo.unmarkDone(task.id),
+            onMarkSkipped: () => repo.markSkipped(task.id),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(Key('task_card_checkbox_$id')), findsNothing);
+    expect(find.byKey(Key('task_card_skip_$id')), findsNothing);
+    expect(find.byIcon(Icons.event_outlined), findsOneWidget);
   });
 }

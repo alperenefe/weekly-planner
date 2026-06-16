@@ -76,6 +76,30 @@ void main() {
     expect(d.tasks.single.targetWeekday, 5);
   });
 
+  test('updateTemplateTask edits title duration notes and day', () async {
+    final tid = await repo.insertTemplate('T');
+    final taskId = await repo.insertTemplateTask(
+      WeekTemplateTasksCompanion.insert(
+        templateId: tid,
+        title: 'Eski',
+        targetWeekday: const Value(2),
+      ),
+    );
+    await repo.updateTemplateTask(
+      taskId,
+      title: 'Yeni',
+      durationMinutes: 45,
+      notes: 'not',
+      targetWeekday: 4,
+    );
+    final d = await repo.getTemplateWithTasks(tid);
+    final task = d.tasks.single;
+    expect(task.title, 'Yeni');
+    expect(task.durationMinutes, 45);
+    expect(task.notes, 'not');
+    expect(task.targetWeekday, 4);
+  });
+
   test('deleteTemplate removes template and all its tasks', () async {
     final tid = await repo.insertTemplate('Del');
     await repo.insertTemplateTask(

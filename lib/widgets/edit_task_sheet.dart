@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../data/db/app_database.dart';
 import '../date/week_calendar.dart';
+import '../models/task_kind.dart';
 import '../plan_day_labels.dart';
 import '../services/task_focus_timer_controller.dart';
 import '../theme/design_tokens.dart';
@@ -21,6 +22,7 @@ typedef EditTaskSubmit = Future<void> Function(
   int dayIndex,
   int? startMinutes,
   int? accentColorArgb,
+  String taskKind,
 );
 
 typedef EditTaskDeletePressed = Future<void> Function();
@@ -34,6 +36,7 @@ class EditTaskSheet extends StatefulWidget {
     required this.initialDayIndex,
     required this.initialStartMinutes,
     this.initialAccentColor,
+    this.initialTaskKind = TaskKind.work,
     required this.onSubmit,
     this.taskEntity,
     this.onStartFocus,
@@ -46,6 +49,7 @@ class EditTaskSheet extends StatefulWidget {
   final int initialDayIndex;
   final int? initialStartMinutes;
   final int? initialAccentColor;
+  final String initialTaskKind;
   final EditTaskSubmit onSubmit;
   final Task? taskEntity;
   final Future<void> Function(Task draft)? onStartFocus;
@@ -68,7 +72,10 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
   late bool useStartTime;
   late int startMinutes;
   int? accentArgb;
+  late String taskKind;
   bool _didPreloadFocusBudget = false;
+
+  bool get isEvent => taskKind == TaskKind.event;
 
   @override
   void initState() {
@@ -76,6 +83,7 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
     final d = widget.initialDayIndex;
     selectedDayIndex = d < 0 || d > 7 ? 0 : d;
     accentArgb = widget.initialAccentColor ?? widget.taskEntity?.accentColor;
+    taskKind = widget.initialTaskKind;
     titleController = TextEditingController(text: widget.initialTitle);
     titleController.addListener(onTitleChanged);
     durationController = TextEditingController(
@@ -163,12 +171,14 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
     setState(() => saving = true);
     try {
       int? duration;
-      final d = durationController.text.trim();
-      if (d.isNotEmpty) {
-        duration = int.tryParse(d);
+      if (!isEvent) {
+        final d = durationController.text.trim();
+        if (d.isNotEmpty) {
+          duration = int.tryParse(d);
+        }
       }
       final notesRaw = notesController.text.trim();
-      final start = useStartTime ? startMinutes : null;
+      final start = isEvent || !useStartTime ? null : startMinutes;
       await widget.onSubmit(
         title,
         duration,
@@ -176,6 +186,7 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
         selectedDayIndex,
         start,
         accentArgb,
+        taskKind,
       );
     } finally {
       if (mounted) {

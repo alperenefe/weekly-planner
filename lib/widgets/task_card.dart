@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../date/week_calendar.dart';
 import '../data/db/app_database.dart';
+import '../models/task_kind.dart';
 import '../services/task_focus_timer_controller.dart';
 import '../theme/design_tokens.dart';
+import 'planner_color_chip.dart';
 import 'pressable_scale.dart';
 
 class TaskCard extends StatelessWidget {
@@ -48,6 +50,9 @@ class TaskCard extends StatelessWidget {
     if (custom != null) {
       return Color(custom);
     }
+    if (TaskKind.isEvent(task)) {
+      return const Color(0xFFA855F7);
+    }
     if (_inPool) {
       return DesignTokens.slate600;
     }
@@ -64,6 +69,7 @@ class TaskCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEvent = TaskKind.isEvent(task);
     final isDone = task.status == 'done';
     final planned = task.status == 'planned';
     final skipped = task.status == 'skipped';
@@ -73,11 +79,18 @@ class TaskCard extends StatelessWidget {
       height: 1.5,
       fontWeight: FontWeight.w600,
       color: theme.colorScheme.onSurface,
-      decoration: isDone ? TextDecoration.lineThrough : null,
+      decoration: !isEvent && isDone ? TextDecoration.lineThrough : null,
       decorationColor: DesignTokens.slate400,
     );
 
     Widget leadingControl() {
+      if (isEvent) {
+        return Icon(
+          Icons.event_outlined,
+          size: 18,
+          color: _stripeColor.withValues(alpha: 0.95),
+        );
+      }
       if (planned) {
         return InkWell(
           key: Key('task_card_checkbox_${task.id}'),
@@ -188,7 +201,9 @@ class TaskCard extends StatelessWidget {
     }
 
     Widget focusSpentChip() {
-      if (task.durationMinutes == null || task.durationMinutes! <= 0) {
+      if (isEvent ||
+          task.durationMinutes == null ||
+          task.durationMinutes! <= 0) {
         return const SizedBox.shrink();
       }
       return Selector<TaskFocusTimerController, int?>(
@@ -226,7 +241,8 @@ class TaskCard extends StatelessWidget {
     }
 
     Widget focusRemainChip() {
-      if (task.status != 'planned' ||
+      if (isEvent ||
+          task.status != 'planned' ||
           task.durationMinutes == null ||
           task.durationMinutes! <= 0) {
         return const SizedBox.shrink();
@@ -283,7 +299,13 @@ class TaskCard extends StatelessWidget {
             alignment: WrapAlignment.start,
             children: [
               timeChip(),
-              durationRow(),
+              if (!isEvent) durationRow(),
+              if (task.accentColor != null)
+                PlannerColorChip(
+                  label: 'Vurgu',
+                  color: Color(task.accentColor!),
+                  compact: true,
+                ),
               focusSpentChip(),
               focusRemainChip(),
               if (_plannedDateOutsideWeek)
@@ -350,7 +372,7 @@ class TaskCard extends StatelessWidget {
               ),
             ),
           ),
-        if (planned && onMarkSkipped != null)
+        if (planned && onMarkSkipped != null && !isEvent)
           Positioned(
             top: 4,
             right: onDelete != null

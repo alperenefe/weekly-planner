@@ -56,12 +56,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Test Şablonu'), findsWidgets);
-
-    await tester.tap(find.byIcon(Icons.arrow_back));
-    await tester.pumpAndSettle();
-
-    final id = (await WeekTemplateRepository(db).getTemplates()).single.id;
-    expect(find.byKey(Key('week_template_row_$id')), findsOneWidget);
+    expect(find.byKey(const Key('week_template_detail_fab')), findsOneWidget);
+    expect(find.byKey(const Key('week_tpl_empty_Havuz')), findsOneWidget);
   });
 
   testWidgets('deleting template shows confirmation dialog', (tester) async {

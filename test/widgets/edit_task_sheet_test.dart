@@ -29,9 +29,9 @@ void main() {
             initialDayIndex: 1,
             initialStartMinutes: null,
             onSubmit: (title, durationMinutes, notes, dayIndex, startMinutes,
-                accentColorArgb) async {
+                accentColorArgb, taskKind) async {
               Object.hash(title, durationMinutes, notes, dayIndex, startMinutes,
-                  accentColorArgb);
+                  accentColorArgb, taskKind);
             },
             onDeletePressed: () async {
               deleteCalls++;
@@ -59,6 +59,8 @@ void main() {
       createdAt: '2025-01-01T00:00:00.000Z',
       updatedAt: '2025-01-01T00:00:00.000Z',
       reminderEnabled: 0,
+      taskKind: 'work',
+      priority: 0,
     );
     SharedPreferences.setMockInitialValues({
       'task_focus_remaining_seconds_map_v1': jsonEncode({'99': 9 * 60}),
@@ -81,8 +83,8 @@ void main() {
               initialDayIndex: 0,
               initialStartMinutes: null,
               taskEntity: task,
-              onSubmit: (a, b, c, d, e, f) async {
-                Object.hash(a, b, c, d, e, f);
+              onSubmit: (a, b, c, d, e, f, g) async {
+                Object.hash(a, b, c, d, e, f, g);
               },
               onStartFocus: (draft) async {
                 await focus.start(draft);

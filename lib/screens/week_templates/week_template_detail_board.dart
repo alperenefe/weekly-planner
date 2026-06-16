@@ -23,6 +23,7 @@ class WeekTemplatePlanBoard extends StatelessWidget {
     required this.tasks,
     required this.controller,
     required this.onDropTask,
+    required this.onEditTask,
     required this.onDeleteTask,
     required this.onDragUpdate,
   });
@@ -30,6 +31,7 @@ class WeekTemplatePlanBoard extends StatelessWidget {
   final List<WeekTemplateTask> tasks;
   final ScrollController controller;
   final Future<void> Function(WeekTemplateTask task, int? newTargetWeekday) onDropTask;
+  final Future<void> Function(WeekTemplateTask task) onEditTask;
   final Future<void> Function(WeekTemplateTask task) onDeleteTask;
   final void Function(DragUpdateDetails details) onDragUpdate;
 
@@ -76,6 +78,7 @@ class WeekTemplatePlanBoard extends StatelessWidget {
                       dropTargetWeekday: i == 0 ? null : i,
                       dragFeedbackCardWidth: _kDragFeedbackCardWidth,
                       onDropFromDrag: onDropTask,
+                      onEditTask: onEditTask,
                       onDeleteTask: onDeleteTask,
                       onDragUpdate: onDragUpdate,
                     ),
@@ -98,6 +101,7 @@ class WeekTemplateTaskColumn extends StatelessWidget {
     required this.dropTargetWeekday,
     required this.dragFeedbackCardWidth,
     required this.onDropFromDrag,
+    required this.onEditTask,
     required this.onDeleteTask,
     required this.onDragUpdate,
   });
@@ -107,6 +111,7 @@ class WeekTemplateTaskColumn extends StatelessWidget {
   final int? dropTargetWeekday;
   final double dragFeedbackCardWidth;
   final Future<void> Function(WeekTemplateTask task, int? newTargetWeekday) onDropFromDrag;
+  final Future<void> Function(WeekTemplateTask task) onEditTask;
   final Future<void> Function(WeekTemplateTask task) onDeleteTask;
   final void Function(DragUpdateDetails details) onDragUpdate;
 
@@ -128,6 +133,7 @@ class WeekTemplateTaskColumn extends StatelessWidget {
                 return _WeekTemplateTaskCard(
                   key: omitKey ? null : Key('week_tpl_card_${t.id}'),
                   task: t,
+                  onTap: () => unawaited(onEditTask(t)),
                   onDelete: () => unawaited(onDeleteTask(t)),
                   dragSlotWrapper: withDrag
                       ? (Widget body) => LongPressDraggable<WeekTemplateTask>(
@@ -194,11 +200,13 @@ class _WeekTemplateTaskCard extends StatelessWidget {
   const _WeekTemplateTaskCard({
     super.key,
     required this.task,
+    required this.onTap,
     required this.onDelete,
     this.dragSlotWrapper,
   });
 
   final WeekTemplateTask task;
+  final VoidCallback onTap;
   final VoidCallback onDelete;
   final Widget Function(Widget child)? dragSlotWrapper;
 
@@ -209,42 +217,57 @@ class _WeekTemplateTaskCard extends StatelessWidget {
     final body = Material(
       color: DesignTokens.slate800,
       borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    task.title,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: DesignTokens.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  if (dur != null) ...[
-                    const SizedBox(height: 4),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      '$dur dk',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: DesignTokens.slate400,
+                      task.title,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: DesignTokens.white,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
+                    if (dur != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '$dur dk',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: DesignTokens.slate400,
+                        ),
+                      ),
+                    ],
+                    if (task.notes != null && task.notes!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        task.notes!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: DesignTokens.slate500,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444), size: 22),
-              onPressed: onDelete,
-              visualDensity: VisualDensity.compact,
-            ),
-          ],
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444), size: 22),
+                onPressed: onDelete,
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
         ),
       ),
     );

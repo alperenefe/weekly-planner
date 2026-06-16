@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:weekly_planner/data/db/app_database.dart';
 import 'package:weekly_planner/data/repositories/task_repository.dart';
+import 'package:weekly_planner/date/turkish_date.dart';
 import 'package:weekly_planner/date/week_calendar.dart';
 import 'package:weekly_planner/plan_day_labels.dart';
 
@@ -61,7 +62,7 @@ void main() {
     expect(find.text('SadeceBuHaftaXyz'), findsNothing);
 
     final label = tester.widget<Text>(find.byKey(const Key('week_nav_label')));
-    expect(label.data, contains(nextMonday));
+    expect(label.data, trWeekNavigationLabel(nextMonday));
   });
 
   testWidgets('hafta geri önceki haftaya döner', (tester) async {
@@ -94,10 +95,10 @@ void main() {
     expect(find.text('OncekiHaftaGorevXyz'), findsOneWidget);
 
     final label = tester.widget<Text>(find.byKey(const Key('week_nav_label')));
-    expect(label.data, contains(prevMonday));
+    expect(label.data, trWeekNavigationLabel(prevMonday));
   });
 
-  testWidgets('gün özeti satırı görünür', (tester) async {
+  testWidgets('gün sütununda kısa tarih görünür', (tester) async {
     final db = AppDatabase.memory();
     addTearDown(() async {
       await db.close();
@@ -105,7 +106,15 @@ void main() {
     await tester.pumpWidget(plannerAppWithDb(db));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('weekly_plan_day_hint')), findsOneWidget);
+    final monday = mondayIsoContaining(DateTime.now());
+    final todayIso = toIsoDate(DateTime.now());
+    final isos = weekdayIsosFromMonday(monday);
+    final todayIdx = isos.indexOf(todayIso);
+    if (todayIdx < 0) return;
+
+    final label = kPlanDayLabels[todayIdx + 1];
+    expect(find.byKey(Key('board_col_date_$label')), findsOneWidget);
+    expect(find.byKey(Key('board_col_strip_$label')), findsOneWidget);
   });
 
   testWidgets('üçüncü taşımada sık taşınıyor snackbar', (tester) async {

@@ -160,6 +160,30 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _taskKindMeta = const VerificationMeta(
+    'taskKind',
+  );
+  @override
+  late final GeneratedColumn<String> taskKind = GeneratedColumn<String>(
+    'task_kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('work'),
+  );
+  static const VerificationMeta _priorityMeta = const VerificationMeta(
+    'priority',
+  );
+  @override
+  late final GeneratedColumn<int> priority = GeneratedColumn<int>(
+    'priority',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -209,6 +233,8 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     movedCount,
     recurrenceTemplateId,
     accentColor,
+    taskKind,
+    priority,
     createdAt,
     updatedAt,
     completedAt,
@@ -334,6 +360,18 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         ),
       );
     }
+    if (data.containsKey('task_kind')) {
+      context.handle(
+        _taskKindMeta,
+        taskKind.isAcceptableOrUnknown(data['task_kind']!, _taskKindMeta),
+      );
+    }
+    if (data.containsKey('priority')) {
+      context.handle(
+        _priorityMeta,
+        priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -424,6 +462,14 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         DriftSqlType.int,
         data['${effectivePrefix}accent_color'],
       ),
+      taskKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}task_kind'],
+      )!,
+      priority: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}priority'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}created_at'],
@@ -460,6 +506,12 @@ class Task extends DataClass implements Insertable<Task> {
   final int movedCount;
   final int? recurrenceTemplateId;
   final int? accentColor;
+
+  /// `work` = zamanlı iş; `event` = gün etkinliği (ör. buluşma, saat opsiyonel).
+  final String taskKind;
+
+  /// 0=yok, 1=düşük, 2=orta, 3=yüksek
+  final int priority;
   final String createdAt;
   final String updatedAt;
   final String? completedAt;
@@ -478,6 +530,8 @@ class Task extends DataClass implements Insertable<Task> {
     required this.movedCount,
     this.recurrenceTemplateId,
     this.accentColor,
+    required this.taskKind,
+    required this.priority,
     required this.createdAt,
     required this.updatedAt,
     this.completedAt,
@@ -515,6 +569,8 @@ class Task extends DataClass implements Insertable<Task> {
     if (!nullToAbsent || accentColor != null) {
       map['accent_color'] = Variable<int>(accentColor);
     }
+    map['task_kind'] = Variable<String>(taskKind);
+    map['priority'] = Variable<int>(priority);
     map['created_at'] = Variable<String>(createdAt);
     map['updated_at'] = Variable<String>(updatedAt);
     if (!nullToAbsent || completedAt != null) {
@@ -555,6 +611,8 @@ class Task extends DataClass implements Insertable<Task> {
       accentColor: accentColor == null && nullToAbsent
           ? const Value.absent()
           : Value(accentColor),
+      taskKind: Value(taskKind),
+      priority: Value(priority),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       completedAt: completedAt == null && nullToAbsent
@@ -587,6 +645,8 @@ class Task extends DataClass implements Insertable<Task> {
         json['recurrenceTemplateId'],
       ),
       accentColor: serializer.fromJson<int?>(json['accentColor']),
+      taskKind: serializer.fromJson<String>(json['taskKind']),
+      priority: serializer.fromJson<int>(json['priority']),
       createdAt: serializer.fromJson<String>(json['createdAt']),
       updatedAt: serializer.fromJson<String>(json['updatedAt']),
       completedAt: serializer.fromJson<String?>(json['completedAt']),
@@ -610,6 +670,8 @@ class Task extends DataClass implements Insertable<Task> {
       'movedCount': serializer.toJson<int>(movedCount),
       'recurrenceTemplateId': serializer.toJson<int?>(recurrenceTemplateId),
       'accentColor': serializer.toJson<int?>(accentColor),
+      'taskKind': serializer.toJson<String>(taskKind),
+      'priority': serializer.toJson<int>(priority),
       'createdAt': serializer.toJson<String>(createdAt),
       'updatedAt': serializer.toJson<String>(updatedAt),
       'completedAt': serializer.toJson<String?>(completedAt),
@@ -631,6 +693,8 @@ class Task extends DataClass implements Insertable<Task> {
     int? movedCount,
     Value<int?> recurrenceTemplateId = const Value.absent(),
     Value<int?> accentColor = const Value.absent(),
+    String? taskKind,
+    int? priority,
     String? createdAt,
     String? updatedAt,
     Value<String?> completedAt = const Value.absent(),
@@ -657,6 +721,8 @@ class Task extends DataClass implements Insertable<Task> {
         ? recurrenceTemplateId.value
         : this.recurrenceTemplateId,
     accentColor: accentColor.present ? accentColor.value : this.accentColor,
+    taskKind: taskKind ?? this.taskKind,
+    priority: priority ?? this.priority,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     completedAt: completedAt.present ? completedAt.value : this.completedAt,
@@ -695,6 +761,8 @@ class Task extends DataClass implements Insertable<Task> {
       accentColor: data.accentColor.present
           ? data.accentColor.value
           : this.accentColor,
+      taskKind: data.taskKind.present ? data.taskKind.value : this.taskKind,
+      priority: data.priority.present ? data.priority.value : this.priority,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       completedAt: data.completedAt.present
@@ -720,6 +788,8 @@ class Task extends DataClass implements Insertable<Task> {
           ..write('movedCount: $movedCount, ')
           ..write('recurrenceTemplateId: $recurrenceTemplateId, ')
           ..write('accentColor: $accentColor, ')
+          ..write('taskKind: $taskKind, ')
+          ..write('priority: $priority, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('completedAt: $completedAt')
@@ -743,6 +813,8 @@ class Task extends DataClass implements Insertable<Task> {
     movedCount,
     recurrenceTemplateId,
     accentColor,
+    taskKind,
+    priority,
     createdAt,
     updatedAt,
     completedAt,
@@ -765,6 +837,8 @@ class Task extends DataClass implements Insertable<Task> {
           other.movedCount == this.movedCount &&
           other.recurrenceTemplateId == this.recurrenceTemplateId &&
           other.accentColor == this.accentColor &&
+          other.taskKind == this.taskKind &&
+          other.priority == this.priority &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.completedAt == this.completedAt);
@@ -785,6 +859,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
   final Value<int> movedCount;
   final Value<int?> recurrenceTemplateId;
   final Value<int?> accentColor;
+  final Value<String> taskKind;
+  final Value<int> priority;
   final Value<String> createdAt;
   final Value<String> updatedAt;
   final Value<String?> completedAt;
@@ -803,6 +879,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.movedCount = const Value.absent(),
     this.recurrenceTemplateId = const Value.absent(),
     this.accentColor = const Value.absent(),
+    this.taskKind = const Value.absent(),
+    this.priority = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.completedAt = const Value.absent(),
@@ -822,6 +900,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.movedCount = const Value.absent(),
     this.recurrenceTemplateId = const Value.absent(),
     this.accentColor = const Value.absent(),
+    this.taskKind = const Value.absent(),
+    this.priority = const Value.absent(),
     required String createdAt,
     required String updatedAt,
     this.completedAt = const Value.absent(),
@@ -844,6 +924,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Expression<int>? movedCount,
     Expression<int>? recurrenceTemplateId,
     Expression<int>? accentColor,
+    Expression<String>? taskKind,
+    Expression<int>? priority,
     Expression<String>? createdAt,
     Expression<String>? updatedAt,
     Expression<String>? completedAt,
@@ -865,6 +947,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
       if (recurrenceTemplateId != null)
         'recurrence_template_id': recurrenceTemplateId,
       if (accentColor != null) 'accent_color': accentColor,
+      if (taskKind != null) 'task_kind': taskKind,
+      if (priority != null) 'priority': priority,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (completedAt != null) 'completed_at': completedAt,
@@ -886,6 +970,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Value<int>? movedCount,
     Value<int?>? recurrenceTemplateId,
     Value<int?>? accentColor,
+    Value<String>? taskKind,
+    Value<int>? priority,
     Value<String>? createdAt,
     Value<String>? updatedAt,
     Value<String?>? completedAt,
@@ -905,6 +991,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
       movedCount: movedCount ?? this.movedCount,
       recurrenceTemplateId: recurrenceTemplateId ?? this.recurrenceTemplateId,
       accentColor: accentColor ?? this.accentColor,
+      taskKind: taskKind ?? this.taskKind,
+      priority: priority ?? this.priority,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       completedAt: completedAt ?? this.completedAt,
@@ -958,6 +1046,12 @@ class TasksCompanion extends UpdateCompanion<Task> {
     if (accentColor.present) {
       map['accent_color'] = Variable<int>(accentColor.value);
     }
+    if (taskKind.present) {
+      map['task_kind'] = Variable<String>(taskKind.value);
+    }
+    if (priority.present) {
+      map['priority'] = Variable<int>(priority.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<String>(createdAt.value);
     }
@@ -987,6 +1081,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
           ..write('movedCount: $movedCount, ')
           ..write('recurrenceTemplateId: $recurrenceTemplateId, ')
           ..write('accentColor: $accentColor, ')
+          ..write('taskKind: $taskKind, ')
+          ..write('priority: $priority, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('completedAt: $completedAt')
@@ -2172,6 +2268,8 @@ typedef $$TasksTableCreateCompanionBuilder =
       Value<int> movedCount,
       Value<int?> recurrenceTemplateId,
       Value<int?> accentColor,
+      Value<String> taskKind,
+      Value<int> priority,
       required String createdAt,
       required String updatedAt,
       Value<String?> completedAt,
@@ -2192,6 +2290,8 @@ typedef $$TasksTableUpdateCompanionBuilder =
       Value<int> movedCount,
       Value<int?> recurrenceTemplateId,
       Value<int?> accentColor,
+      Value<String> taskKind,
+      Value<int> priority,
       Value<String> createdAt,
       Value<String> updatedAt,
       Value<String?> completedAt,
@@ -2272,6 +2372,16 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
 
   ColumnFilters<int> get accentColor => $composableBuilder(
     column: $table.accentColor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get taskKind => $composableBuilder(
+    column: $table.taskKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get priority => $composableBuilder(
+    column: $table.priority,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2370,6 +2480,16 @@ class $$TasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get taskKind => $composableBuilder(
+    column: $table.taskKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -2455,6 +2575,12 @@ class $$TasksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get taskKind =>
+      $composableBuilder(column: $table.taskKind, builder: (column) => column);
+
+  GeneratedColumn<int> get priority =>
+      $composableBuilder(column: $table.priority, builder: (column) => column);
+
   GeneratedColumn<String> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -2509,6 +2635,8 @@ class $$TasksTableTableManager
                 Value<int> movedCount = const Value.absent(),
                 Value<int?> recurrenceTemplateId = const Value.absent(),
                 Value<int?> accentColor = const Value.absent(),
+                Value<String> taskKind = const Value.absent(),
+                Value<int> priority = const Value.absent(),
                 Value<String> createdAt = const Value.absent(),
                 Value<String> updatedAt = const Value.absent(),
                 Value<String?> completedAt = const Value.absent(),
@@ -2527,6 +2655,8 @@ class $$TasksTableTableManager
                 movedCount: movedCount,
                 recurrenceTemplateId: recurrenceTemplateId,
                 accentColor: accentColor,
+                taskKind: taskKind,
+                priority: priority,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 completedAt: completedAt,
@@ -2547,6 +2677,8 @@ class $$TasksTableTableManager
                 Value<int> movedCount = const Value.absent(),
                 Value<int?> recurrenceTemplateId = const Value.absent(),
                 Value<int?> accentColor = const Value.absent(),
+                Value<String> taskKind = const Value.absent(),
+                Value<int> priority = const Value.absent(),
                 required String createdAt,
                 required String updatedAt,
                 Value<String?> completedAt = const Value.absent(),
@@ -2565,6 +2697,8 @@ class $$TasksTableTableManager
                 movedCount: movedCount,
                 recurrenceTemplateId: recurrenceTemplateId,
                 accentColor: accentColor,
+                taskKind: taskKind,
+                priority: priority,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 completedAt: completedAt,

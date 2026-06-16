@@ -14,11 +14,13 @@ class WeeklyPlanEmptyColumnPlaceholder extends StatelessWidget {
   final String label;
   final String testKey;
 
+  bool get _showCaption => label.isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return Stack(
+        final body = Stack(
           fit: StackFit.expand,
           children: [
             CustomPaint(
@@ -29,35 +31,39 @@ class WeeklyPlanEmptyColumnPlaceholder extends StatelessWidget {
                 borderRadius: 8,
               ),
             ),
-            Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: DesignTokens.space4),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      label == 'Boş'
-                          ? Icons.inbox_outlined
-                          : Icons.event_note_outlined,
-                      size: 32,
-                      color: DesignTokens.slate600,
-                    ),
-                    SizedBox(height: DesignTokens.space2),
-                    Text(
-                      label,
-                      key: Key(testKey),
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: DesignTokens.textMuted,
-                            fontWeight: FontWeight.w500,
-                          ),
-                    ),
-                  ],
+            if (_showCaption)
+              Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: DesignTokens.space4),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        label == 'Boş'
+                            ? Icons.inbox_outlined
+                            : Icons.event_note_outlined,
+                        size: 32,
+                        color: DesignTokens.slate600,
+                      ),
+                      SizedBox(height: DesignTokens.space2),
+                      Text(
+                        label,
+                        key: Key(testKey),
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: DesignTokens.textMuted,
+                              fontWeight: FontWeight.w500,
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
+              )
+            else
+              SizedBox(key: Key(testKey)),
           ],
         );
+        return body;
       },
     );
   }

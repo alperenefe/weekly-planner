@@ -8,8 +8,9 @@ import '../../data/db/app_database.dart';
 import '../../data/repositories/recurring_template_repository.dart';
 import '../../plan_day_labels.dart';
 import '../../theme/design_tokens.dart';
+import '../../theme/planner_shell_layout.dart';
 import '../../widgets/planner_dialogs.dart';
-import '../../widgets/planner_top_bar.dart';
+import '../../widgets/planner_empty_state.dart';
 
 class RecurringTemplatesScreen extends StatefulWidget {
   const RecurringTemplatesScreen({super.key});
@@ -21,22 +22,36 @@ class RecurringTemplatesScreen extends StatefulWidget {
 
 class _RecurringTemplatesScreenState extends State<RecurringTemplatesScreen> {
   List<RecurringTemplate> _items = [];
-  bool _loading = true;
+  bool _loading = false;
+  String? _loadError;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _reload());
+    unawaited(_reload());
   }
 
   Future<void> _reload() async {
-    final repo = context.read<RecurringTemplateRepository>();
-    final list = await repo.getAllTemplates();
     if (!mounted) return;
     setState(() {
-      _items = list;
-      _loading = false;
+      _loading = true;
+      _loadError = null;
     });
+    try {
+      final repo = context.read<RecurringTemplateRepository>();
+      final list = await repo.getAllTemplates();
+      if (!mounted) return;
+      setState(() {
+        _items = list;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _loadError = e.toString();
+      });
+    }
   }
 
   String _dayLabel(int? tw) {
@@ -216,28 +231,60 @@ class _RecurringTemplatesScreenState extends State<RecurringTemplatesScreen> {
     return Scaffold(
       key: const Key('recurring_templates_screen'),
       backgroundColor: DesignTokens.slate950,
-      appBar: const PlannerTopBar(title: 'Her hafta otomatik görevler'),
-      floatingActionButton: FloatingActionButton(
-        key: const Key('recurring_templates_new'),
-        onPressed: () => unawaited(_openEditor()),
-        backgroundColor: DesignTokens.blue600,
-        foregroundColor: DesignTokens.white,
-        child: const Icon(Icons.add),
+      appBar: const PlannerSubScreenAppBar(
+        title: 'Her hafta otomatik görevler',
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _items.isEmpty
-              ? Center(
-                  child: Text(
-                    'Henüz otomatik görev tanımlı değil',
-                    key: const Key('recurring_templates_empty'),
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: DesignTokens.slate400,
+      floatingActionButton: Padding(
+        padding: EdgeInsets.only(
+          bottom: plannerShellFabBottomPadding(context),
+        ),
+        child: FloatingActionButton.extended(
+          key: const Key('recurring_templates_new'),
+          onPressed: () => unawaited(_openEditor()),
+          backgroundColor: DesignTokens.blue600,
+          foregroundColor: DesignTokens.white,
+          icon: const Icon(Icons.add),
+          label: const Text('Kural ekle'),
+        ),
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_loading)
+            const LinearProgressIndicator(
+              minHeight: 2,
+              backgroundColor: DesignTokens.slate900,
+              color: DesignTokens.blue500,
+            ),
+          Expanded(
+            child: _loadError != null
+                ? Center(
+                    child: Text(
+                      'Yüklenemedi.\n$_loadError',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: DesignTokens.slate500),
                     ),
-                  ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+                  )
+                : _items.isEmpty
+                    ? Center(
+                        child: PlannerEmptyState(
+                          testKey: const Key('recurring_templates_empty'),
+                          icon: Icons.repeat_rounded,
+                          title: 'Henüz otomatik görev yok',
+                          subtitle:
+                              'Örn. her Pazartesi «spor» veya her Perşembe «toplantı» '
+                              'gibi kurallar yeni haftaya kendiliğinden eklenir.',
+                          actionLabel: 'İlk kuralı ekle',
+                          onAction: () => unawaited(_openEditor()),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: EdgeInsets.fromLTRB(
+                          16,
+                          8,
+                          16,
+                          plannerShellFabBottomPadding(context) + 72,
+                        ),
                   itemCount: _items.length,
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 8),
@@ -245,6 +292,18 @@ class _RecurringTemplatesScreenState extends State<RecurringTemplatesScreen> {
                     final t = _items[i];
                     return ListTile(
                       key: Key('recurring_template_row_${t.id}'),
+                      leading: CircleAvatar(
+                        backgroundColor: t.isActive == 1
+                            ? DesignTokens.blue600.withValues(alpha: 0.2)
+                            : DesignTokens.slate800,
+                        child: Icon(
+                          t.isActive == 1 ? Icons.repeat : Icons.pause_circle_outline,
+                          color: t.isActive == 1
+                              ? DesignTokens.blue400
+                              : DesignTokens.slate500,
+                          size: 22,
+                        ),
+                      ),
                       tileColor: DesignTokens.slate900.withValues(alpha: 0.65),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -274,6 +333,9 @@ class _RecurringTemplatesScreenState extends State<RecurringTemplatesScreen> {
                     );
                   },
                 ),
+          ),
+        ],
+      ),
     );
   }
 }

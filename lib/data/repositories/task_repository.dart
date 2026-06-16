@@ -218,6 +218,27 @@ class TaskRepository {
     return rows.map((r) => r.read<String>('w')).toList();
   }
 
+  /// Geçmiş haftaların tüm görevlerini ve ilgili kayıtları siler (bu hafta korunur).
+  Future<int> deletePastWeeksBefore(String currentWeekStart) {
+    return _db.transaction(() async {
+      final pastTasks = await (_db.select(_db.tasks)
+            ..where((t) => t.weekStart.isSmallerThanValue(currentWeekStart)))
+          .get();
+      if (pastTasks.isEmpty) return 0;
+      final ids = pastTasks.map((t) => t.id).toList();
+      await (_db.delete(_db.taskHistories)
+            ..where((h) => h.taskId.isIn(ids)))
+          .go();
+      final deleted = await (_db.delete(_db.tasks)
+            ..where((t) => t.weekStart.isSmallerThanValue(currentWeekStart)))
+          .go();
+      await (_db.delete(_db.weekMetas)
+            ..where((m) => m.weekStart.isSmallerThanValue(currentWeekStart)))
+          .go();
+      return deleted;
+    });
+  }
+
   Future<Task?> getTaskById(int id) {
     return (_db.select(_db.tasks)..where((t) => t.id.equals(id))).getSingleOrNull();
   }

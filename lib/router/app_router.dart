@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../screens/history_export/history_export_screen.dart';
 import '../screens/monthly_goals/monthly_goals_screen.dart';
 import '../screens/periodic_reminders/periodic_reminders_screen.dart';
+import '../screens/todos/todos_screen.dart';
 import '../screens/recurring_templates/recurring_templates_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/week_templates/week_templates_screen.dart';
@@ -38,6 +39,9 @@ final class AppRouter {
           return '/plan';
         }
         if (!f.periodicRemindersTabEnabled && path == '/reminders') {
+          return '/plan';
+        }
+        if (!f.todosTabEnabled && path == '/todos') {
           return '/plan';
         }
         if (!f.recurringTemplatesEnabled &&
@@ -93,6 +97,14 @@ final class AppRouter {
                 GoRoute(
                   path: '/reminders',
                   builder: (context, state) => const PeriodicRemindersScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/todos',
+                  builder: (context, state) => const TodosScreen(),
                 ),
               ],
             ),

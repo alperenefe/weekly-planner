@@ -64,7 +64,7 @@ class _EditTaskSheetBody extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Etkinliği düzenle',
+                state.isEvent ? 'Gün etkinliğini düzenle' : 'İşi düzenle',
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   fontSize: 28,
@@ -72,7 +72,35 @@ class _EditTaskSheetBody extends StatelessWidget {
                   height: 1.2,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
+              SegmentedButton<String>(
+                key: const Key('edit_task_kind'),
+                segments: const [
+                  ButtonSegment(
+                    value: TaskKind.work,
+                    label: Text('İş'),
+                    icon: Icon(Icons.work_outline_rounded, size: 18),
+                  ),
+                  ButtonSegment(
+                    value: TaskKind.event,
+                    label: Text('Etkinlik'),
+                    icon: Icon(Icons.event_outlined, size: 18),
+                  ),
+                ],
+                selected: {state.taskKind},
+                onSelectionChanged: state.saving
+                    ? null
+                    : (s) {
+                        state.setState(() {
+                          state.taskKind = s.first;
+                          if (state.isEvent) {
+                            state.useStartTime = false;
+                            state.durationController.clear();
+                          }
+                        });
+                      },
+              ),
+              const SizedBox(height: 16),
               Material(
                 color: DesignTokens.slate900,
                 shape: RoundedRectangleBorder(
@@ -106,130 +134,133 @@ class _EditTaskSheetBody extends StatelessWidget {
                           textInputAction: TextInputAction.next,
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        key: const Key('edit_task_duration'),
-                        controller: state.durationController,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: DesignTokens.white,
-                        ),
-                        cursorColor: DesignTokens.blue400,
-                        decoration: fieldDec('Süre (dakika)', hint: 'Örn: 30'),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        textInputAction: TextInputAction.next,
-                      ),
-                      if (sheet.onStartFocus != null &&
-                          sheet.taskEntity != null &&
-                          sheet.taskEntity!.status == 'planned') ...[
-                        const SizedBox(height: 12),
-                        Selector<TaskFocusTimerController, String>(
-                          selector: (_, c) {
-                            final t = sheet.taskEntity!;
-                            final d = int.tryParse(
-                                  state.durationController.text.trim(),
-                                ) ??
-                                t.durationMinutes ??
-                                0;
-                            if (d <= 0) return 'Süreyi başlat';
-                            final goalSec = d * 60;
-                            final rem = c.budgetRemainingSeconds(
-                              taskId: t.id,
-                              goalTotalSeconds: goalSec,
-                            );
-                            if (rem >= goalSec) return 'Süreyi başlat';
-                            final mins = (rem + 59) ~/ 60;
-                            return 'Devam et ($mins dk kaldı)';
-                          },
-                          builder: (context, label, _) {
-                            return OutlinedButton.icon(
-                              key: const Key('edit_task_start_focus'),
-                              onPressed: state.saving
-                                  ? null
-                                  : state.onStartFocusPressed,
-                              icon: const Icon(
-                                Icons.play_circle_outline,
-                                color: DesignTokens.blue400,
-                              ),
-                              label: Text(label),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: DesignTokens.blue400,
-                                side: const BorderSide(
-                                  color: DesignTokens.slate700,
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                  horizontal: 16,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-                      SwitchListTile(
-                        key: const Key('edit_task_start_toggle'),
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          'Başlangıç saati',
-                          style: theme.textTheme.titleSmall?.copyWith(
+                      if (!state.isEvent) ...[
+                        const SizedBox(height: 16),
+                        TextField(
+                          key: const Key('edit_task_duration'),
+                          controller: state.durationController,
+                          style: theme.textTheme.bodyMedium?.copyWith(
                             color: DesignTokens.white,
-                            fontWeight: FontWeight.w600,
                           ),
+                          cursorColor: DesignTokens.blue400,
+                          decoration: fieldDec('Süre (dakika)', hint: 'Örn: 30'),
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          textInputAction: TextInputAction.next,
                         ),
-                        subtitle: Text(
-                          state.useStartTime
-                              ? formatClockMinutes(state.startMinutes)
-                              : 'Kapalı',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: DesignTokens.slate400,
+                        if (sheet.onStartFocus != null &&
+                            sheet.taskEntity != null &&
+                            sheet.taskEntity!.status == 'planned') ...[
+                          const SizedBox(height: 12),
+                          Selector<TaskFocusTimerController, String>(
+                            selector: (_, c) {
+                              final t = sheet.taskEntity!;
+                              final d = int.tryParse(
+                                    state.durationController.text.trim(),
+                                  ) ??
+                                  t.durationMinutes ??
+                                  0;
+                              if (d <= 0) return 'Süreyi başlat';
+                              final goalSec = d * 60;
+                              final rem = c.budgetRemainingSeconds(
+                                taskId: t.id,
+                                goalTotalSeconds: goalSec,
+                              );
+                              if (rem >= goalSec) return 'Süreyi başlat';
+                              final mins = (rem + 59) ~/ 60;
+                              return 'Devam et ($mins dk kaldı)';
+                            },
+                            builder: (context, label, _) {
+                              return OutlinedButton.icon(
+                                key: const Key('edit_task_start_focus'),
+                                onPressed: state.saving
+                                    ? null
+                                    : state.onStartFocusPressed,
+                                icon: const Icon(
+                                  Icons.play_circle_outline,
+                                  color: DesignTokens.blue400,
+                                ),
+                                label: Text(label),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: DesignTokens.blue400,
+                                  side: const BorderSide(
+                                    color: DesignTokens.slate700,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                    horizontal: 16,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                        ),
-                        value: state.useStartTime,
-                        onChanged: state.setUseStartTime,
-                        activeThumbColor: DesignTokens.blue400,
-                      ),
-                      if (state.useStartTime) ...[
-                        const SizedBox(height: 8),
-                        OutlinedButton(
-                          key: const Key('edit_task_start_pick'),
-                          onPressed: state.saving ? null : state.pickStartTime,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: DesignTokens.white,
-                            side: const BorderSide(color: DesignTokens.slate700),
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 14,
-                              horizontal: 16,
+                        ],
+                        const SizedBox(height: 16),
+                        SwitchListTile(
+                          key: const Key('edit_task_start_toggle'),
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            'Başlangıç saati',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: DesignTokens.white,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.schedule,
-                                size: 20,
-                                color: DesignTokens.blue400,
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                formatClockMinutes(state.startMinutes),
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  color: DesignTokens.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Değiştir',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: DesignTokens.slate400,
-                                ),
-                              ),
-                            ],
+                          subtitle: Text(
+                            state.useStartTime
+                                ? formatClockMinutes(state.startMinutes)
+                                : 'Kapalı',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: DesignTokens.slate400,
+                            ),
                           ),
+                          value: state.useStartTime,
+                          onChanged: state.setUseStartTime,
+                          activeThumbColor: DesignTokens.blue400,
                         ),
+                        if (state.useStartTime) ...[
+                          const SizedBox(height: 8),
+                          OutlinedButton(
+                            key: const Key('edit_task_start_pick'),
+                            onPressed:
+                                state.saving ? null : state.pickStartTime,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: DesignTokens.white,
+                              side: const BorderSide(color: DesignTokens.slate700),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 14,
+                                horizontal: 16,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.schedule,
+                                  size: 20,
+                                  color: DesignTokens.blue400,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  formatClockMinutes(state.startMinutes),
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    color: DesignTokens.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Değiştir',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: DesignTokens.slate400,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                       const SizedBox(height: 20),
                       Text(

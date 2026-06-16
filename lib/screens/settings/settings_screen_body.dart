@@ -73,8 +73,6 @@ class _SettingsScrollBody extends StatelessWidget {
           ),
           onTap: () => unawaited(state._seedDemoData()),
         ),
-        const SizedBox(height: 8),
-        const AppUpdateCard(),
         const SizedBox(height: 24),
         Text(
           'Planlama',
@@ -384,6 +382,31 @@ class _SettingsScrollBody extends StatelessWidget {
                       store.setFlags(
                         f.copyWith(periodicRemindersTabEnabled: v),
                       ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  key: const Key('settings_feature_todos_tab'),
+                  tileColor: DesignTokens.slate900.withValues(alpha: 0.6),
+                  shape: tileShape,
+                  title: Text(
+                    'Yapılacaklar sekmesi',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: DesignTokens.slate200,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Kategorili yapılacak listesi ve son tarihler',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: DesignTokens.slate400,
+                    ),
+                  ),
+                  value: f.todosTabEnabled,
+                  onChanged: (v) {
+                    unawaited(
+                      store.setFlags(f.copyWith(todosTabEnabled: v)),
                     );
                   },
                 ),

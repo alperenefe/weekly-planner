@@ -10,6 +10,7 @@ import '../../models/periodic_reminder.dart';
 import '../../theme/design_tokens.dart';
 import '../../theme/planner_shell_layout.dart';
 import '../../widgets/planner_dialogs.dart';
+import '../../widgets/planner_empty_state.dart';
 import '../../widgets/planner_top_bar.dart';
 import 'periodic_reminder_editor_sheet.dart';
 import 'periodic_reminder_history_sheet.dart';
@@ -24,23 +25,36 @@ class PeriodicRemindersScreen extends StatefulWidget {
 
 class _PeriodicRemindersScreenState extends State<PeriodicRemindersScreen> {
   List<PeriodicReminder> _items = [];
-  bool _loading = true;
+  bool _loading = false;
+  String? _loadError;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_reload()));
+    unawaited(_reload());
   }
 
   Future<void> _reload() async {
-    setState(() => _loading = true);
-    final repo = context.read<PeriodicReminderRepository>();
-    final items = await repo.getAllSortedByDueDate();
     if (!mounted) return;
     setState(() {
-      _items = items;
-      _loading = false;
+      _loading = true;
+      _loadError = null;
     });
+    try {
+      final repo = context.read<PeriodicReminderRepository>();
+      final items = await repo.getAllSortedByDueDate();
+      if (!mounted) return;
+      setState(() {
+        _items = items;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _loadError = e.toString();
+      });
+    }
   }
 
   Future<void> _openEditor({PeriodicReminder? existing}) async {
@@ -153,8 +167,6 @@ class _PeriodicRemindersScreenState extends State<PeriodicRemindersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       key: const Key('periodic_reminders_screen'),
       appBar: const PlannerTopBar(title: 'Hatırlatıcılar'),
@@ -172,65 +184,70 @@ class _PeriodicRemindersScreenState extends State<PeriodicRemindersScreen> {
           label: const Text('Ekle'),
         ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
-              children: [
-                if (_items.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 32),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        key: const Key('periodic_reminders_empty'),
-                        onTap: () => unawaited(_openEditor()),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.event_repeat,
-                                size: 48,
-                                color: DesignTokens.slate600,
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Periyodik iş ekle',
-                                textAlign: TextAlign.center,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  color: DesignTokens.blue400,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Başlık + kaç günde bir (örn. 14, 180)',
-                                textAlign: TextAlign.center,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: DesignTokens.slate500,
-                                ),
-                              ),
-                            ],
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_loading)
+            const LinearProgressIndicator(
+              key: Key('periodic_reminders_loading_bar'),
+              minHeight: 2,
+              backgroundColor: DesignTokens.slate900,
+              color: DesignTokens.blue500,
+            ),
+          Expanded(
+            child: _loadError != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Hatırlatıcılar yüklenemedi.\n$_loadError',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: DesignTokens.slate500),
                           ),
-                        ),
+                          const SizedBox(height: 16),
+                          FilledButton(
+                            onPressed: () => unawaited(_reload()),
+                            child: const Text('Tekrar dene'),
+                          ),
+                        ],
                       ),
                     ),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+                    children: [
+                      if (_items.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 32),
+                          child: PlannerEmptyState(
+                            testKey: const Key('periodic_reminders_empty'),
+                            icon: Icons.event_repeat,
+                            title: 'Periyodik iş ekle',
+                            subtitle:
+                                'Başlık + kaç günde bir (örn. 14, 180)',
+                            actionLabel: 'İlk hatırlatıcıyı ekle',
+                            onAction: () => unawaited(_openEditor()),
+                          ),
+                        ),
+                      for (final item in _items)
+                        _ReminderRow(
+                          item: item,
+                          onTap: () => unawaited(_openHistory(item)),
+                          onDone: () => unawaited(_markDone(item)),
+                          onEdit: () => unawaited(_openEditor(existing: item)),
+                          onUndoLast: item.lastCompletedAt != null
+                              ? () => unawaited(_undoLastDone(item))
+                              : null,
+                          onDelete: () => unawaited(_confirmDelete(item)),
+                        ),
+                    ],
                   ),
-                for (final item in _items)
-                  _ReminderRow(
-                    item: item,
-                    onTap: () => unawaited(_openHistory(item)),
-                    onDone: () => unawaited(_markDone(item)),
-                    onEdit: () => unawaited(_openEditor(existing: item)),
-                    onUndoLast: item.lastCompletedAt != null
-                        ? () => unawaited(_undoLastDone(item))
-                        : null,
-                    onDelete: () => unawaited(_confirmDelete(item)),
-                  ),
-              ],
-            ),
+          ),
+        ],
+      ),
     );
   }
 }

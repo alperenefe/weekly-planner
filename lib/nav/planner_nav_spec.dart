@@ -154,9 +154,31 @@ PlannerNavSpec buildPlannerNavSpec(PlannerFeatureFlags flags) {
 
   }
 
+  if (flags.todosTabEnabled) {
+
+    items.add((
+
+      branch: 5,
+
+      dest: const NavigationDestination(
+
+        key: Key('nav_todos'),
+
+        icon: Icon(Icons.checklist_outlined),
+
+        selectedIcon: Icon(Icons.checklist_rounded),
+
+        label: 'Yapılacak',
+
+      ),
+
+    ));
+
+  }
+
   items.add((
 
-    branch: 5,
+    branch: 6,
 
     dest: const NavigationDestination(
 
